@@ -1,4 +1,4 @@
-# Drones C3BF
+# 3D Collision Cone Control Barrier Function for Drones
 
 ## Overview
 
@@ -6,6 +6,6 @@
 
 ## References
 
-##License
+## License
 
 ## Citation
