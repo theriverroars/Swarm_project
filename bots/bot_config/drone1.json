@@ -17,10 +17,10 @@
     },
     "dimensions":
     {
-        "length_offset_COM" : 0.005,
+        "length_offset_COM" : 0.01,
         "length" : 0.1,
         "width" : 0.1,
-        "height" : 0.1
+        "height" : 0.03
     },
     "mass-inertia":
     {

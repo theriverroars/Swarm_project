@@ -146,9 +146,12 @@ class QP_Controller_Drone(QP_Controller):
         v_rel_y = c_y_d - (bot.sym_y_d + bot.sym_l*(-bot.sym_w_1*r_z + bot.sym_w_3*r_x))
         v_rel_z = c_z_d - (bot.sym_z_d + bot.sym_l*(-bot.sym_w_2*r_x + bot.sym_w_1*r_y))
         
-        # C3BF Candidate
-        self.h = p_rel_x*v_rel_x + p_rel_y*v_rel_y + p_rel_z*v_rel_z \
-            + norm(v_rel_x, v_rel_y, v_rel_z)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.sym_r**2)
+        # # C3BF Candidate
+        # self.h = p_rel_x*v_rel_x + p_rel_y*v_rel_y + p_rel_z*v_rel_z \
+        #     + norm(v_rel_x, v_rel_y, v_rel_z)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.sym_r**2)
+
+        # Classical CBF
+        self.h = norm(c_x - bot.sym_x, c_y - bot.sym_y, c_z - bot.sym_z)**2 -1
             
         rho_h_by_rho_x = diff(self.h, bot.sym_x)
         rho_h_by_rho_y = diff(self.h, bot.sym_y)
@@ -218,18 +221,21 @@ class QP_Controller_Drone(QP_Controller):
                  bot.phi,  bot.theta, bot.psi,
                  bot.w_1,  bot.w_2,  bot.w_3,
                  bot.L,  bot.Ixx,  bot.Iyy,  bot.Izz, 
-                 bot.m,  bot.l,  bot.encompassing_radius]
+                 bot.m,  bot.l,  bot.encompassing_radius ]
 
         d = {uk: uk_gs[i] for i, uk in enumerate(uk_vs)}
 
         # build value substitution list        
         self.h = np.array(re(self.h.xreplace(d)))
         self.Psi = np.array(re(self.Psi.xreplace(d)))
-        self.B = np.array(self.B.xreplace(d))
-        self.C = np.array(self.C.xreplace(d))
+        self.B = np.array(re(self.B.xreplace(d)))
+        self.C = np.array(re(self.C.xreplace(d)))
 
-        if self.Psi.real<0:
+        # print(self.Psi)
+
+        if self.Psi<0:
             self.u_safe = - np.matmul(self.B, np.linalg.inv(np.matmul(self.C,self.B).astype('float64'))).dot(self.Psi)
+            # print(self.u_safe)
         else:
             self.u_safe = 0
         self.u_star = self.u_ref + self.u_safe
