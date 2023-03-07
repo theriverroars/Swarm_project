@@ -1,8 +1,5 @@
 import numpy as np
 
-from core.koopman_core import KoopDNN,KoopmanNet,KoopmanNetCtrl
-from models.koop_model import model_matricies,lift
-
 import time
 import pandas as pd
 import cflib.crtp
@@ -29,36 +26,6 @@ from scipy.signal import savgol_filter
 dt = 1/100
 num_states = 12
 num_inputs = 4
-
-params = {}
-params['state_dim'] = num_states
-params['ctrl_dim'] = num_inputs
-params['encoder_hidden_width'] = 100
-params['encoder_hidden_depth'] = 3
-params['encoder_output_dim'] = 8
-params['optimizer'] = 'adam'
-params['activation_type'] = 'tanh'
-params['lr'] = 1e-4 # 5e-4
-params['epochs'] = 500
-params['batch_size'] = 128
-params['lifted_loss_penalty'] = 0.2
-params['l2_reg'] = 0.00         
-params['l1_reg'] = 0.00
-params['first_obs_const'] = True
-params['override_C'] = True # this makes the state a part of lifetd state
-params['dt'] = dt
-
-
-#path_input = 'Datasets/rpyt/input_ds_21.csv'
-path_input = 'Datasets/rpyt/hover.csv'
-df_input = pd.read_csv(path_input)
-input_np  = df_input.to_numpy()
-input_np = input_np[:,1:] 
-
-# for i in range(np.shape(input_np)[1]):
-#     print(i)
-#     input_np[:,i] = savgol_filter(input_np[:,i],51,3) 
-
 
 
 # URI to the Crazyflie to connect to
@@ -250,49 +217,6 @@ def start_position_printing(scf):
     log_conf.start()
 
 
-# def run_sequence(scf, sequence):
-#     cf = scf.cf
-#     for position in sequence:
-#         #print('Setting position {}'.format(position))
-#         for i in range(10):
-#             cf.commander.send_position_setpoint(position[0],
-#                                                 position[1],
-#                                                 0.4,
-#                                                 0)
-#             time.sleep(0.02)
-
-#     cf.commander.send_stop_setpoint()
-#     # Make sure that the last packet leaves before the link is closed
-#     # since the message queue is not flushed before closing
-#     time.sleep(0.1)
-
-
-def send_extpose_rot_matrix(cf, x, y, z, rot):
-    """Send full pose from mocap to Crazyflie."""
-    # get quaternion from rot matrix
-    qw = sqrt(1 + rot[0][0] + rot[1][1] + rot[2][2]) / 2
-    qx = sqrt(1 + rot[0][0] - rot[1][1] - rot[2][2]) / 2
-    qy = sqrt(1 - rot[0][0] + rot[1][1] - rot[2][2]) / 2
-    qz = sqrt(1 - rot[0][0] - rot[1][1] + rot[2][2]) / 2
-    # Normalize the quaternion
-    ql = math.sqrt(qx ** 2 + qy ** 2 + qz ** 2 + qw ** 2)
-    # Send to Crazyflie
-    # print(f'mocap: x: {x}, y: {y}, z: {z}')
-    # cf.extpos.send_extpose(x, y, z, qx / ql, qy / ql, qz / ql, qw / ql)
-    global OUTPUTS, mocap
-    global start_time
-    t = time.time() - start_time
-    OUTPUTS['mocap_output_timestamp'].append(t)
-    p = mocap.getpose()
-    OUTPUTS['mocap_x'].append(p.x)
-    OUTPUTS['mocap_y'].append(p.y)
-    OUTPUTS['mocap_z'].append(p.z)
-    rotation = Rotation.from_matrix(p.rotmatrix)
-    r = rotation.as_quat()
-    OUTPUTS['mocap_qx'].append(r[0])
-    OUTPUTS['mocap_qy'].append(r[1])
-    OUTPUTS['mocap_qz'].append(r[2])
-    OUTPUTS['mocap_qw'].append(r[3])
 
 def mocaplogging(pose):
     global OUTPUTS, mocap
@@ -321,19 +245,15 @@ def run_sequence(scf):
         t = t_now-t_in
         if t >= t_end:
             break
-
-        # thr = int(np.mean(input_np[j,:4]))
-        # thr = 44000
-        # thr = max(42000,int(input_np[j,7]))
-        # thr = int((np.mean(input_np[j,:4])+ input_np[j,6] + input_np[j,7])/3)
-        # thr = max(0,int(input_np[j,6]))
-        # thr = 46900
-        thr = int(input_np[j,6])
-        r = 0*(input_np[j,8])
-        p = 0*(input_np[j,9])
-        #y = 0
-        y =0# (input_np[j,10])
-        # print(OUTPUTS['stateZ_x'][-1], OUTPUTS['stateZ_y'][-1], OUTPUTS['stateZ_z'][-1])
+        ################################################################
+        put the controller here
+        controller
+        i/p - state
+        o/p - torques
+        call the model
+        i/p - torques
+        o/p - roll, pitch, yaw,z
+        ################################################################
         print('rpyt setpoints:',r,p,y,thr)
         # cf.commander.send_zdistance_setpoint(r, p, y, 0.4)
 
