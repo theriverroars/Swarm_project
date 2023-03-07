@@ -248,7 +248,7 @@ def run_sequence(scf):
         ################################################################
         put the controller here
         controller
-        i/p - state
+        i/p - state - drone and obstacle
         o/p - torques
         call the model
         i/p - torques
