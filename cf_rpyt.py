@@ -21,6 +21,8 @@ from scipy.spatial.transform import Rotation
 from mocaptools import sqrt, Pose, QtmWrapper
 from utils import  comp_quat_to_euler,decompressquat, convert_thrust_2_pwm
 from scipy.signal import savgol_filter
+from controllers.QP_controller_drone import QP_Controller_Drone
+from quad3d_ctrl import Quad3D
 
 
 dt = 1/100
@@ -246,13 +248,47 @@ def run_sequence(scf):
         if t >= t_end:
             break
         ################################################################
-        put the controller here
-        controller
-        i/p - state - drone and obstacle
-        o/p - torques
-        call the model
-        i/p - torques
-        o/p - roll, pitch, yaw,z
+        # put the controller here
+        # controller
+        # i/p - state - drone and obstacle
+        # o/p - torques
+        # call the model
+        # i/p - torques
+        # o/p - roll, pitch, yaw,z
+        CTRL_0 = Quad3D(env=env)
+        # Initialize the target trajectory   
+        TARGET_POSITION = np.array([[0, 0, 0.5+0.02*i] for i in range(DURATION*env.SIM_FREQ)])
+        TARGET_VELOCITY = np.zeros([DURATION * env.SIM_FREQ, 3])
+        TARGET_ACCELERATION = np.zeros([DURATION * env.SIM_FREQ, 3])
+
+        # Derive the target trajectory to obtain target velocities and accelerations
+        TARGET_VELOCITY[1:, :] = (TARGET_POSITION[1:, :] - TARGET_POSITION[0:-1, :]) / env.SIM_FREQ
+        TARGET_ACCELERATION[1:, :] = (TARGET_VELOCITY[1:, :] - TARGET_VELOCITY[0:-1, :]) / env.SIM_FREQ
+
+        thrusts = CTRL_0.compute_control(current_position=state[0:3],
+                                        current_velocity=state[10:13],
+                                        current_rpy=state[7:10],
+                                        target_position=TARGET_POSITION[i, :],
+                                        target_velocity=TARGET_VELOCITY[i, :],
+                                        target_acceleration=TARGET_ACCELERATION[i, :]
+                                        )
+
+
+        gamma = 1
+        qp = QP_Controller_Drone(gamma)
+        u_ref = thrusts
+        f_u_ref = kf * np.square(u_ref)
+        qp.set_reference_control(f_u_ref)
+        # print(obs_1[0:3], obs_1[10:13])
+        qp.setup_QP(bot, obs_3[0:3], obs_3[10:13])
+               
+
+        # Simulation
+        # Solve QP
+        state_of_QP, value_of_h = qp.solve_QP(bot)
+        
+        # Bot Kinematics
+        u_star = qp.get_optimal_control()
         ################################################################
         print('rpyt setpoints:',r,p,y,thr)
         # cf.commander.send_zdistance_setpoint(r, p, y, 0.4)
