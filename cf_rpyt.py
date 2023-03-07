@@ -18,7 +18,7 @@ import logging
 from threading import Event
 from scipy.spatial.transform import Rotation
 
-from mocap.mocaptools import sqrt, Pose, QtmWrapper
+from mocaptools import sqrt, Pose, QtmWrapper
 from utils import  comp_quat_to_euler,decompressquat, convert_thrust_2_pwm
 from scipy.signal import savgol_filter
 
