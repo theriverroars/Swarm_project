@@ -289,6 +289,17 @@ def run_sequence(scf):
         
         # Bot Kinematics
         u_star = qp.get_optimal_control()
+        thrusts = u_star
+
+        thr = thrusts[0] + thrusts[1] + thrusts[2] + thrusts[3]
+
+        x = state[0]
+        y = state[1]
+        z = state[2]
+
+        r = state[7]
+        p = state[8]
+        ya = state[9]
         ################################################################
         print('rpyt setpoints:',r,p,y,thr)
         # cf.commander.send_zdistance_setpoint(r, p, y, 0.4)
