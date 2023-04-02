@@ -7,7 +7,6 @@ from cflib.crazyflie.log import LogConfig
 from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
 from cflib.crazyflie.syncLogger import SyncLogger
 from cflib.utils import uri_helper
-import math
 # from cflib.positioning.position_hl_commander import PositionHlCommander
 # from cflib.positioning.motion_commander import MotionCommander
 from paths import path_pars
@@ -51,26 +50,20 @@ logging.basicConfig(level=logging.ERROR)
 
 path = '/home/rajpal/github_dat/Drones-C3BF-hardware/results/save-flight--01.03.2023_13.24.04/'
 
-roll = np.loadtxt(path + 'r0.csv',
+x = np.loadtxt(path + 'x0.csv',
                  delimiter=",", dtype=float)
 
  
+t = x[:,0]
+x = x[:,1]
 
-roll = roll[:,1]
-
-pitch = np.loadtxt(path + 'p0.csv',
+y = np.loadtxt(path + 'y0.csv',
                  delimiter=",", dtype=float)
-pitch = pitch[:,1]
-
-yaw_rate = np.loadtxt(path + 'yar0.csv',
-                 delimiter=",", dtype=float)
-yaw_rate = yaw_rate[:,1]
+y = y[:,1]
 
 z = np.loadtxt(path + 'z0.csv',
                  delimiter=",", dtype=float)
-t = z[:,0]
 z = z[:,1]
-
 
 
 # path parameters
@@ -294,10 +287,9 @@ def mocaplogging(pose):
 
 
 def run_sequence(scf):
-    global OUTPUTS, rol,pitch,yaw,z
+    global OUTPUTS, x,y,z
     cf = scf.cf
     j = 0
-    cf.commander.send_zdistance_setpoint(0,0,0,0)
     while True: #np.absolute(OUTPUTS['stateZ_x'][-1])/1000 < 2 and np.absolute(OUTPUTS['stateZ_y'][-1])/1000 < 2 and (OUTPUTS['stateZ_z'][-1])/1000 < 0.8:
         t_now = time.time()
         t = t_now-t_in
@@ -308,25 +300,25 @@ def run_sequence(scf):
    
         if t < t_lift:
             for i in range(10):
-                cf.commander.send_zdistance_setpoint(0,
-                                                     0,
-                                                     0,
-                                                     r_init[2])
+                cf.commander.send_position_setpoint(r_init[0],
+                                                    r_init[1],
+                                                    r_init[2],
+                                                    0)
                 time.sleep(0.001)
         elif t < n_iters*t_run + t_lift:
             for i in range(10):
-                cf.commander.send_zdistance_setpoint(math.degrees(roll[j]),
-                                                     math.degrees(pitch[j]),
-                                                     math.degrees(yaw_rate[j]),
-                                                     z[j])
+                cf.commander.send_position_setpoint(x[j],
+                                                y[j],
+                                                z[j],
+                                                0)
                 j = j+1
                 time.sleep(0.0166)
         elif t < n_iters*t_run + t_lift + t_land:
             for i in range(10):
-                cf.commander.send_zdistance_setpoint(0,
-                                                     0,
-                                                     0,
-                                                     0)
+                cf.commander.send_position_setpoint(r_init[0],
+                                                    r_init[1],
+                                                    0.05,
+                                                    0)
                 time.sleep(0.001)
         elif t >= n_iters*t_run + t_lift + t_land:
             break
@@ -411,7 +403,7 @@ if __name__ == '__main__':
 
     # init_pos = mocap.getpose()
     # r_init = np.array([init_pos.x,init_pos.y,hieght])
-    r_init = np.array([0, 0, z[0]])
+    r_init = np.array([x[0], y[0], z[0]])
     t_in = time.time()
 
     with SyncCrazyflie(uri, cf=Crazyflie(rw_cache='./cache')) as scf:
