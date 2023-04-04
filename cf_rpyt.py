@@ -24,6 +24,7 @@ from scipy.signal import savgol_filter
 from controllers.QP_controller_drone import QP_Controller_Drone
 from quad3d_ctrl1 import Quad3D
 
+import Dynamics.drone_dynamics as drone_dyn
 
 dt = 1/100
 num_states = 12
@@ -255,10 +256,17 @@ def run_sequence(scf):
         # call the model
         # i/p - torques
         # o/p - roll, pitch, yaw,z
+        pos = params['pos']
+        quat = params['quat']
+        rpy = params['rpy']
+        vel = params['vel']
+        rpy_rates = params['rpy_rates']
+        TIMESTEP = params['dt']
+
         CTRL = Quad3D()
-        thrusts = CTRL.compute_control(current_position=state[0:3],
-                                        current_velocity=state[10:13],
-                                        current_rpy=state[7:10],
+        thrusts = CTRL.compute_control(current_position=pos,
+                                        current_velocity=vel,
+                                        current_rpy=rpy,
                                         target_position=TARGET_POSITION[i, :],
                                         target_velocity=TARGET_VELOCITY[i, :],
                                         target_acceleration=TARGET_ACCELERATION[i, :]
@@ -284,7 +292,9 @@ def run_sequence(scf):
 
         thr = thrusts[0] + thrusts[1] + thrusts[2] + thrusts[3]
 
-        ## rpy from the model
+        ## rpy from the dynamics
+
+        _, _, rpy, _, _=drone_dyn._dynamics(params, thrusts)
 
         ################################################################
         print('rpyt setpoints:',r,p,y,thr)
