@@ -22,7 +22,7 @@ from mocaptools import sqrt, Pose, QtmWrapper
 from utils import  comp_quat_to_euler,decompressquat, convert_thrust_2_pwm
 from scipy.signal import savgol_filter
 from controllers.QP_controller_drone import QP_Controller_Drone
-from quad3d_ctrl import Quad3D
+from quad3d_ctrl1 import Quad3D
 
 
 dt = 1/100
@@ -255,17 +255,8 @@ def run_sequence(scf):
         # call the model
         # i/p - torques
         # o/p - roll, pitch, yaw,z
-        CTRL_0 = Quad3D(env=env)
-        # Initialize the target trajectory   
-        TARGET_POSITION = np.array([[0, 0, 0.5+0.02*i] for i in range(DURATION*env.SIM_FREQ)])
-        TARGET_VELOCITY = np.zeros([DURATION * env.SIM_FREQ, 3])
-        TARGET_ACCELERATION = np.zeros([DURATION * env.SIM_FREQ, 3])
-
-        # Derive the target trajectory to obtain target velocities and accelerations
-        TARGET_VELOCITY[1:, :] = (TARGET_POSITION[1:, :] - TARGET_POSITION[0:-1, :]) / env.SIM_FREQ
-        TARGET_ACCELERATION[1:, :] = (TARGET_VELOCITY[1:, :] - TARGET_VELOCITY[0:-1, :]) / env.SIM_FREQ
-
-        thrusts = CTRL_0.compute_control(current_position=state[0:3],
+        CTRL = Quad3D()
+        thrusts = CTRL.compute_control(current_position=state[0:3],
                                         current_velocity=state[10:13],
                                         current_rpy=state[7:10],
                                         target_position=TARGET_POSITION[i, :],
@@ -293,16 +284,11 @@ def run_sequence(scf):
 
         thr = thrusts[0] + thrusts[1] + thrusts[2] + thrusts[3]
 
-        x = state[0]
-        y = state[1]
-        z = state[2]
+        ## rpy from the model
 
-        r = state[7]
-        p = state[8]
-        ya = state[9]
         ################################################################
         print('rpyt setpoints:',r,p,y,thr)
-        # cf.commander.send_zdistance_setpoint(r, p, y, 0.4)
+        # cfcommander.send_zdistance_setpoint(r, p, y, 0.4)
 
         cf.commander.send_setpoint(r,
                                     p,
