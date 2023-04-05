@@ -19,7 +19,7 @@ from threading import Event
 from scipy.spatial.transform import Rotation
 
 from mocaptools import sqrt, Pose, QtmWrapper
-from utils import  comp_quat_to_euler,decompressquat, convert_thrust_2_pwm
+from utility_functions import  comp_quat_to_euler,decompressquat, convert_thrust_2_pwm
 from scipy.signal import savgol_filter
 from controllers.QP_controller_drone import QP_Controller_Drone
 from quad3d_ctrl1 import Quad3D
@@ -131,19 +131,19 @@ def log_state_callback(timestamp, data, logconf):
     OUTPUTS['state_qw'].append(data['stateEstimate.qw'])
 
 
-def log_state_rate_callback(timestamp, data, logconf):
+def log_stateZ_callback(timestamp, data, logconf):
     global OUTPUTS, start_time
     OUTPUTS['stateZ_timestamp'].append(timestamp)
     OUTPUTS['stateZ_x'].append(data['stateEstimateZ.x'])
     OUTPUTS['stateZ_y'].append(data['stateEstimateZ.y'])
     OUTPUTS['stateZ_z'].append(data['stateEstimateZ.z'])
-    # OUTPUTS['stateZ_quat'].append(data['stateEstimateZ.quat'])
-    # OUTPUTS['stateZ_vx'].append(data['stateEstimateZ.vx'])
-    # OUTPUTS['stateZ_vy'].append(data['stateEstimateZ.vy'])
-    # OUTPUTS['stateZ_vz'].append(data['stateEstimateZ.vz'])
-    # OUTPUTS['stateZ_rollrate'].append(data['stateEstimateZ.rateRoll'])
-    # OUTPUTS['stateZ_pitchrate'].append(data['stateEstimateZ.ratePitch'])
-    # OUTPUTS['stateZ_yawrate'].append(data['stateEstimateZ.rateYaw'])
+    OUTPUTS['stateZ_quat'].append(data['stateEstimateZ.quat'])
+    OUTPUTS['stateZ_vx'].append(data['stateEstimateZ.vx'])
+    OUTPUTS['stateZ_vy'].append(data['stateEstimateZ.vy'])
+    OUTPUTS['stateZ_vz'].append(data['stateEstimateZ.vz'])
+    OUTPUTS['stateZ_rollrate'].append(data['stateEstimateZ.rateRoll'])
+    OUTPUTS['stateZ_pitchrate'].append(data['stateEstimateZ.ratePitch'])
+    OUTPUTS['stateZ_yawrate'].append(data['stateEstimateZ.rateYaw'])
 
 def wait_for_position_estimator(scf):
     print('Waiting for estimator to find position...')
@@ -243,6 +243,7 @@ def run_sequence(scf):
     global A,B,C,file,params,input_np,t_end,OUTPUTS
     cf.commander.send_setpoint(0,0,0,0)
     j = 0
+    params = []
     while np.absolute(OUTPUTS['stateZ_x'][-1])/1000 < 3 and np.absolute(OUTPUTS['stateZ_y'][-1])/1000 < 3 and (OUTPUTS['stateZ_z'][-1])/1000 < 0.7:
         t_now = time.time()
         t = t_now-t_in
@@ -256,17 +257,17 @@ def run_sequence(scf):
         # call the model
         # i/p - torques
         # o/p - roll, pitch, yaw,z
-        pos = params['pos']
-        quat = params['quat']
-        rpy = params['rpy']
-        vel = params['vel']
-        rpy_rates = params['rpy_rates']
-        TIMESTEP = params['dt']
-
+        params['pos'] = np.array([OUTPUTS['stateZ_x'][-1], OUTPUTS['stateZ_y'][-1], OUTPUTS['stateZ_z'][-1]])/1000 # position in m
+        params['vel'] = np.array([OUTPUTS['stateZ_vx'][-1], OUTPUTS['stateZ_vy'][-1], OUTPUTS['stateZ_vz'][-1]])/1000 # position in m
+        params['quat'] = decompressquat(OUTPUTS['quat'][-1])
+        params['rpy'] = comp_quat_to_euler((OUTPUTS['quat'][-1])) # in radians
+        params['rpy_rates'] = np.array([OUTPUTS['stateZ_rollrate'][-1], OUTPUTS['stateZ_pitchrate'][-1], OUTPUTS['stateZ_yawrate'][-1]])/1000 # in radians/s
+        TIMESTEP = OUTPUTS
+        
         CTRL = Quad3D()
-        thrusts = CTRL.compute_control(current_position=pos,
-                                        current_velocity=vel,
-                                        current_rpy=rpy,
+        thrusts = CTRL.compute_control(current_position=params['pos'] ,
+                                        current_velocity=params['vel'],
+                                        current_rpy=params['rpy'],
                                         target_position=TARGET_POSITION[i, :],
                                         target_velocity=TARGET_VELOCITY[i, :],
                                         target_acceleration=TARGET_ACCELERATION[i, :]
@@ -294,15 +295,15 @@ def run_sequence(scf):
 
         ## rpy from the dynamics
 
-        _, _, rpy, _, _=drone_dyn._dynamics(params, thrusts)
+        _, _, rpy, rpy_rates, _=drone_dyn._dynamics(params, thrusts)
 
         ################################################################
-        print('rpyt setpoints:',r,p,y,thr)
+        print('rpyt setpoints:',rpy,thr)
         # cfcommander.send_zdistance_setpoint(r, p, y, 0.4)
 
-        cf.commander.send_setpoint(r,
-                                    p,
-                                    y,
+        cf.commander.send_setpoint(rpy[0],
+                                   rpy[1],
+                                   rpy_rates[2],
                                     thr)
         time.sleep(0.01)
 
@@ -365,20 +366,20 @@ if __name__ == '__main__':
 
 
 
-    lg_state_rate = LogConfig('stateEstimateZ', period_in_ms=10)
-    lg_state_rate.add_variable('stateEstimateZ.x', 'int16_t')
-    lg_state_rate.add_variable('stateEstimateZ.y', 'int16_t')
-    lg_state_rate.add_variable('stateEstimateZ.z', 'int16_t')
-    # lg_state_rate.add_variable('stateEstimateZ.quat', 'int32_t')
-    # lg_state_rate.add_variable('stateEstimateZ.vx', 'int16_t')
-    # lg_state_rate.add_variable('stateEstimateZ.vy', 'int16_t')
-    # lg_state_rate.add_variable('stateEstimateZ.vz', 'int16_t')
-    # # lg_state_rate.add_variable('stateEstimateZ.ax', 'int16_t')
-    # # lg_state_rate.add_variable('stateEstimateZ.ay', 'int16_t')
-    # # lg_state_rate.add_variable('stateEstimateZ.az', 'int16_t')
-    # lg_state_rate.add_variable('stateEstimateZ.rateRoll', 'int16_t')
-    # lg_state_rate.add_variable('stateEstimateZ.ratePitch', 'int16_t')
-    # lg_state_rate.add_variable('stateEstimateZ.rateYaw', 'int16_t')
+    lg_stateZ = LogConfig('stateEstimateZ', period_in_ms=10)
+    lg_stateZ.add_variable('stateEstimateZ.x', 'int16_t')
+    lg_stateZ.add_variable('stateEstimateZ.y', 'int16_t')
+    lg_stateZ.add_variable('stateEstimateZ.z', 'int16_t')
+    lg_stateZ.add_variable('stateEstimateZ.quat', 'int32_t')
+    lg_stateZ.add_variable('stateEstimateZ.vx', 'int16_t')
+    lg_stateZ.add_variable('stateEstimateZ.vy', 'int16_t')
+    lg_stateZ.add_variable('stateEstimateZ.vz', 'int16_t')
+    # # lg_stateZ.add_variable('stateEstimateZ.ax', 'int16_t')
+    # # lg_stateZ.add_variable('stateEstimateZ.ay', 'int16_t')
+    # # lg_stateZ.add_variable('stateEstimateZ.az', 'int16_t')
+    lg_stateZ.add_variable('stateEstimateZ.rateRoll', 'int16_t')
+    lg_stateZ.add_variable('stateEstimateZ.ratePitch', 'int16_t')
+    lg_stateZ.add_variable('stateEstimateZ.rateYaw', 'int16_t')
     
     # mocap = QtmWrapper(QTM_IP, CF_BODY)
     # time.sleep(5)
@@ -395,7 +396,7 @@ if __name__ == '__main__':
         scf.cf.log.add_config(lg_stab)
         scf.cf.log.add_config(lg_cont)
         # scf.cf.log.add_config(lg_state)   
-        scf.cf.log.add_config(lg_state_rate)
+        scf.cf.log.add_config(lg_stateZ)
         # scf.cf.log.add_config(lg_gyro)
 
         lg_motor.data_received_cb.add_callback(log_motor_callback)
@@ -403,10 +404,10 @@ if __name__ == '__main__':
         lg_stab.data_received_cb.add_callback(log_stabilizer_callback)
         lg_cont.data_received_cb.add_callback(log_controller_callback)     
         # lg_state.data_received_cb.add_callback(log_state_callback)   
-        lg_state_rate.data_received_cb.add_callback(log_state_rate_callback) 
+        lg_stateZ.data_received_cb.add_callback(log_stateZ_callback) 
         # lg_gyro.data_received_cb.add_callback(log_gyro_callback)       
 
-        lg_state_rate.start()
+        lg_stateZ.start()
         bat_volt.start()
         lg_motor.start() 
         lg_stab.start()
@@ -432,7 +433,7 @@ if __name__ == '__main__':
         lg_cont.stop()
         # lg_state.stop()
         # lg_gyro.stop()
-        lg_state_rate.stop()
+        lg_stateZ.stop()
 
     # mocap.close()
     x = input('Do you want to write the file to CSV? (y/n): ')
