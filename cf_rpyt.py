@@ -8,6 +8,7 @@ from cflib.crazyflie.log import LogConfig
 from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
 from cflib.crazyflie.syncLogger import SyncLogger
 from cflib.utils import uri_helper
+from paths import path_pars
 # from cflib.positioning.position_hl_commander import PositionHlCommander
 # from cflib.positioning.motion_commander import MotionCommander
 # from traj.paths import path_pars
@@ -24,7 +25,7 @@ from scipy.signal import savgol_filter
 from controllers.QP_controller_drone import QP_Controller_Drone
 from quad3d_ctrl1 import Quad3D
 
-import Dynamics.drone_dynamics as drone_dyn
+from Dynamics.drone_dynamics import drone_dynamics
 
 dt = 1/100
 num_states = 12
@@ -243,71 +244,103 @@ def run_sequence(scf):
     global A,B,C,file,params,input_np,t_end,OUTPUTS
     cf.commander.send_setpoint(0,0,0,0)
     j = 0
-    params = []
+    params = {}
+
+    
     while np.absolute(OUTPUTS['stateZ_x'][-1])/1000 < 3 and np.absolute(OUTPUTS['stateZ_y'][-1])/1000 < 3 and (OUTPUTS['stateZ_z'][-1])/1000 < 0.7:
         t_now = time.time()
         t = t_now-t_in
-        if t >= t_end:
+            ## target values
+        rd,rd_dot,rd_ddot = path_pars(t-t_lift,t_run,c = 0.15, tilt=0,rd_init = r_init,shape = 'lissajous')
+        if t < t_lift:
+            for i in range(10):
+                cf.commander.send_zdistance_setpoint(0,
+                                                     0,
+                                                     0,
+                                                     r_init[2])
+                time.sleep(0.001)
+        elif t < n_iters*t_run + t_lift:
+                ################################################################
+            # put the controller here
+            # controller
+            # i/p - state - drone and obstacle
+            # o/p - torques
+            # call the model
+            # i/p - torques
+            # o/p - roll, pitch, yaw,z
+            params['pos'] = np.array([OUTPUTS['stateZ_x'][-1], OUTPUTS['stateZ_y'][-1], OUTPUTS['stateZ_z'][-1]])/1000 # position in m
+            params['vel'] = np.array([OUTPUTS['stateZ_vx'][-1], OUTPUTS['stateZ_vy'][-1], OUTPUTS['stateZ_vz'][-1]])/1000 # position in m
+            params['quat'] = decompressquat(OUTPUTS['stateZ_quat'][-1])
+            params['rpy'] = comp_quat_to_euler((OUTPUTS['stateZ_quat'][-1])) # in radians
+            params['rpy_rates'] = np.array([OUTPUTS['stateZ_rollrate'][-1], OUTPUTS['stateZ_pitchrate'][-1], OUTPUTS['stateZ_yawrate'][-1]])/1000 # in radians/s
+            params['dt'] = (OUTPUTS['stateZ_rollrate'][-1]-OUTPUTS['stateZ_rollrate'][-2])/1000 #s
+            
+            CTRL = Quad3D()
+            rpm = CTRL.compute_control(current_position=params['pos'] ,
+                                            current_velocity=params['vel'],
+                                            current_rpy=params['rpy'],
+                                            target_position=rd,
+                                            target_velocity=rd_dot,
+                                            target_acceleration=rd_ddot
+                                            )
+
+
+            # gamma = 1
+            # qp = QP_Controller_Drone(gamma)
+            # u_ref =   rpm
+            # f_u_ref = kf * np.square(u_ref)
+            # qp.set_reference_control(f_u_ref)
+            # # print(obs_1[0:3], obs_1[10:13])
+            # qp.setup_QP(bot, obs_3[0:3], obs_3[10:13])
+                
+
+            # Simulation
+            # Solve QP
+            # state_of_QP, value_of_h = qp.solve_QP(bot)
+            
+            # # Bot Kinematics
+            # u_star = qp.get_optimal_control()
+            #   rpm = u_star
+
+            KF = 3.16e-10
+            thrusts = KF*(rpm**2)
+
+            ## rpy from the dynamics
+
+            xyz, _, rpy, rpy_rates, _, _= drone_dynamics(params, thrusts)
+            net_thrust = np.sum(thrusts)
+            net_thrust_pwm = np.clip(convert_thrust_2_pwm(net_thrust/4), 0, 65535)
+            ################################################################
+            print('rpyt setpoints:',rpy, thrusts, net_thrust ,net_thrust_pwm)
+            # cfcommander.send_zdistance_setpoint(r, p, y, 0.4)
+ 
+            for i in range(10):
+                cf.commander.send_zdistance_setpoint(math.degrees(rpy[0]),
+                                                    math.degrees(rpy[1]),
+                                                    math.degrees(rpy_rates[2]),
+                                                    r_init[2])
+                
+                # cf.commander.send_setpoint(math.degrees(rpy[0]),
+                #                 math.degrees(rpy[1]),
+                #                 math.degrees(rpy_rates[2]),
+                #                 net_thrust_pwm)
+                time.sleep(0.001)
+
+            j = j+1
+            
+        
+        elif t < n_iters*t_run + t_lift + t_land:
+            for i in range(10):
+                cf.commander.send_zdistance_setpoint(0,
+                                                     0,
+                                                     0,
+                                                     0)
+                time.sleep(0.001)
+        elif t >= n_iters*t_run + t_lift + t_land:
             break
-        ################################################################
-        # put the controller here
-        # controller
-        # i/p - state - drone and obstacle
-        # o/p - torques
-        # call the model
-        # i/p - torques
-        # o/p - roll, pitch, yaw,z
-        params['pos'] = np.array([OUTPUTS['stateZ_x'][-1], OUTPUTS['stateZ_y'][-1], OUTPUTS['stateZ_z'][-1]])/1000 # position in m
-        params['vel'] = np.array([OUTPUTS['stateZ_vx'][-1], OUTPUTS['stateZ_vy'][-1], OUTPUTS['stateZ_vz'][-1]])/1000 # position in m
-        params['quat'] = decompressquat(OUTPUTS['quat'][-1])
-        params['rpy'] = comp_quat_to_euler((OUTPUTS['quat'][-1])) # in radians
-        params['rpy_rates'] = np.array([OUTPUTS['stateZ_rollrate'][-1], OUTPUTS['stateZ_pitchrate'][-1], OUTPUTS['stateZ_yawrate'][-1]])/1000 # in radians/s
-        TIMESTEP = OUTPUTS
+
+
         
-        CTRL = Quad3D()
-        thrusts = CTRL.compute_control(current_position=params['pos'] ,
-                                        current_velocity=params['vel'],
-                                        current_rpy=params['rpy'],
-                                        target_position=TARGET_POSITION[i, :],
-                                        target_velocity=TARGET_VELOCITY[i, :],
-                                        target_acceleration=TARGET_ACCELERATION[i, :]
-                                        )
-
-
-        gamma = 1
-        qp = QP_Controller_Drone(gamma)
-        u_ref = thrusts
-        f_u_ref = kf * np.square(u_ref)
-        qp.set_reference_control(f_u_ref)
-        # print(obs_1[0:3], obs_1[10:13])
-        qp.setup_QP(bot, obs_3[0:3], obs_3[10:13])
-               
-
-        # Simulation
-        # Solve QP
-        state_of_QP, value_of_h = qp.solve_QP(bot)
-        
-        # Bot Kinematics
-        u_star = qp.get_optimal_control()
-        thrusts = u_star
-
-        thr = thrusts[0] + thrusts[1] + thrusts[2] + thrusts[3]
-
-        ## rpy from the dynamics
-
-        _, _, rpy, rpy_rates, _=drone_dyn._dynamics(params, thrusts)
-
-        ################################################################
-        print('rpyt setpoints:',rpy,thr)
-        # cfcommander.send_zdistance_setpoint(r, p, y, 0.4)
-
-        cf.commander.send_setpoint(rpy[0],
-                                   rpy[1],
-                                   rpy_rates[2],
-                                    thr)
-        time.sleep(0.01)
-
-        j = j+1
   
     print('crazyflie gone crazy')
     cf.commander.send_stop_setpoint()

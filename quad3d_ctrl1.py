@@ -1,5 +1,5 @@
 import numpy as np
-from gym_cbf.envs.BaseAviary import BaseAviary
+# from gym_cbf.envs.BaseAviary import BaseAviary
 
 class Quad3D():
     """"""
@@ -44,20 +44,20 @@ class Quad3D():
         self.p_coeff_position["x"] = 0.7 * 0.7
         self.d_coeff_position["x"] = 2 * 0.5 * 0.7
 
-        self.p_coeff_position["z"] = 0.7 * 0.7
+        self.p_coeff_position["z"] = 0.8
         self.d_coeff_position["z"] = 2 * 0.5 * 0.7
         
         self.p_coeff_position["y"] = 0.7 * 0.7
         self.d_coeff_position["y"] = 2 * 0.5 * 0.7
         
-        self.p_coeff_position["r"] = 0.7 * 0.7*0.9
-        self.d_coeff_position["r"] = 2 * 2.5 * 0.7 * 1.5
+        self.p_coeff_position["r"] = 0.005 #0.7 * 0.7*0.9 
+        self.d_coeff_position["r"] = 0.5#2 * 2.5 * 0.7 * 1.5*0.1
         
-        self.p_coeff_position["p"] = 0.7 * 0.7*0.95
-        self.d_coeff_position["p"] = 2 * 2.5 * 0.7 * 1.5
+        self.p_coeff_position["p"] =  0.005#0.7 * 0.7*0.95
+        self.d_coeff_position["p"] =  0.5#2 * 2.5 * 0.7 * 1.5
         
-        self.p_coeff_position["ya"] = 0.7 * 0.7
-        self.d_coeff_position["ya"] = 2 * 2.5 * 0.7 * 1.5
+        self.p_coeff_position["ya"] = 0.005 #0.7 * 0.7
+        self.d_coeff_position["ya"] = 0.5#2 * 2.5 * 0.7 * 1.5
 
         self.reset()
 
