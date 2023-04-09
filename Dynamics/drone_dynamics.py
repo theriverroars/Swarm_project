@@ -48,12 +48,12 @@ def drone_dynamics(params,
         thrust_world_frame = np.dot(rotation, thrust)
         force_world_frame = thrust_world_frame - np.array([0, 0, GRAVITY])
         z_torques = forces*KM/KF
-        z_torque = (-z_torques[0] + z_torques[1] - z_torques[2] + z_torques[3])
+        z_torque = (z_torques[0] - z_torques[1] + z_torques[2] - z_torques[3])
         # if DRONE_MODEL== "CF2X":
-        x_torque = (forces[0] + forces[1] - forces[2] - forces[3]) * (L/np.sqrt(2))
+        x_torque = (-forces[0] - forces[1] + forces[2] + forces[3]) * (L/np.sqrt(2))
         y_torque = (- forces[0] + forces[1] + forces[2] - forces[3]) * (L/np.sqrt(2))
         # elif DRONE_MODEL== "CF2P" or DRONE_MODEL== "HB":
-        # x_torque = (forces[1] - forces[3]) * L
+        # x_torque = (-forces[1] + forces[3]) * L
         # y_torque = (-forces[0] + forces[2]) * L
         torques = np.array([x_torque, y_torque, z_torque])
         torques = torques - np.cross(rpy_rates, np.dot(J, rpy_rates))
