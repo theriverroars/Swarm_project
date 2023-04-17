@@ -245,13 +245,13 @@ def run_sequence(scf):
     cf.commander.send_setpoint(0,0,0,0)
     j = 0
     params = {}
-
+    rpy_rates = np.array([0,0,0])
     
     while np.absolute(OUTPUTS['stateZ_x'][-1])/1000 < 3 and np.absolute(OUTPUTS['stateZ_y'][-1])/1000 < 3 and (OUTPUTS['stateZ_z'][-1])/1000 < 0.7:
         t_now = time.time()
         t = t_now-t_in
             ## target values
-        rd,rd_dot,rd_ddot = path_pars(t-t_lift,t_run,c = 0.15, tilt=0,rd_init = r_init,shape = 'lissajous')
+        rd,rd_dot,rd_ddot = path_pars(t-t_lift,t_run,c = 0.15, tilt=0,rd_init = r_init,shape = 'line')
         if t < t_lift:
             for i in range(10):
                 cf.commander.send_zdistance_setpoint(0,
@@ -259,6 +259,11 @@ def run_sequence(scf):
                                                      0,
                                                      r_init[2])
                 time.sleep(0.001)
+
+            INPUTS['des_timestamp'].append(t)
+            INPUTS['des_roll'].append(0.)
+            INPUTS['des_pitch'].append(0.)
+            INPUTS['des_yaw'].append(0.)
         elif t < n_iters*t_run + t_lift:
                 ################################################################
             # put the controller here
@@ -270,10 +275,13 @@ def run_sequence(scf):
             # o/p - roll, pitch, yaw,z
             params['pos'] = np.array([OUTPUTS['stateZ_x'][-1], OUTPUTS['stateZ_y'][-1], OUTPUTS['stateZ_z'][-1]])/1000 # position in m
             params['vel'] = np.array([OUTPUTS['stateZ_vx'][-1], OUTPUTS['stateZ_vy'][-1], OUTPUTS['stateZ_vz'][-1]])/1000 # position in m
+            # params['vel'] = xyz_dot
             params['quat'] = decompressquat(OUTPUTS['stateZ_quat'][-1])
             params['rpy'] = comp_quat_to_euler((OUTPUTS['stateZ_quat'][-1])) # in radians
-            params['rpy_rates'] = np.array([OUTPUTS['stateZ_rollrate'][-1], OUTPUTS['stateZ_pitchrate'][-1], OUTPUTS['stateZ_yawrate'][-1]])/1000 # in radians/s
-            params['dt'] = (OUTPUTS['stateZ_rollrate'][-1]-OUTPUTS['stateZ_rollrate'][-2])/1000 #s
+            #params['rpy_rates'] = np.array([OUTPUTS['stateZ_rollrate'][-1], OUTPUTS['stateZ_pitchrate'][-1], OUTPUTS['stateZ_yawrate'][-1]])/1000 # in radians/s
+            params['rpy_rates'] = rpy_rates
+            params['dt'] = (OUTPUTS['stateZ_timestamp'][-1]-OUTPUTS['stateZ_timestamp'][-2])/1000 #s
+            
             
             CTRL = Quad3D()
             rpm = CTRL.compute_control(current_position=params['pos'] ,
@@ -281,7 +289,8 @@ def run_sequence(scf):
                                             current_rpy=params['rpy'],
                                             target_position=rd,
                                             target_velocity=rd_dot,
-                                            target_acceleration=rd_ddot
+                                            target_acceleration=rd_ddot,
+                                            TIMESTEP=0.001#params['dt']
                                             )
 
 
@@ -307,18 +316,29 @@ def run_sequence(scf):
 
             ## rpy from the dynamics
 
-            xyz, _, rpy, rpy_rates, _, _= drone_dynamics(params, thrusts)
+            xyz, xyz_dot, rpy, rpy_rates, _, _= drone_dynamics(params, thrusts)
             net_thrust = np.sum(thrusts)
             net_thrust_pwm = np.clip(convert_thrust_2_pwm(net_thrust/4), 0, 65535)
             ################################################################
-            print('rpyt setpoints:',rpy, thrusts, net_thrust ,net_thrust_pwm)
+            print('rpyt setpoints:',np.degrees(rpy), thrusts, net_thrust ,net_thrust_pwm)
+            print('pos:',params['pos'])
             # cfcommander.send_zdistance_setpoint(r, p, y, 0.4)
+
+            INPUTS['des_timestamp'].append(t)
+            INPUTS['des_roll'].append(rpy[0])
+            INPUTS['des_pitch'].append(rpy[1])
+            INPUTS['des_yaw'].append(rpy[2])
  
             for i in range(10):
-                cf.commander.send_zdistance_setpoint(math.degrees(rpy[0]),
-                                                    math.degrees(rpy[1]),
-                                                    math.degrees(rpy_rates[2]),
+                cf.commander.send_zdistance_setpoint(np.clip(math.degrees(rpy[0]),-10,+10),
+                                                    np.clip(math.degrees(-rpy[1]),-10,+10),
+                                                    np.clip(math.degrees(rpy_rates[2]),-4,+4),
                                                     r_init[2])
+                
+                # cf.commander.send_zdistance_setpoint(0,
+                #                                      -2,
+                #                                      0,
+                #                                      r_init[2])
                 
                 # cf.commander.send_setpoint(math.degrees(rpy[0]),
                 #                 math.degrees(rpy[1]),
@@ -336,6 +356,7 @@ def run_sequence(scf):
                                                      0,
                                                      0)
                 time.sleep(0.001)
+        
         elif t >= n_iters*t_run + t_lift + t_land:
             break
 
@@ -353,7 +374,7 @@ if __name__ == '__main__':
     cflib.crtp.init_drivers()
     time_string = time.ctime().replace(':', '-')
     start_time = time.time()
-    INPUTS = {'motor_timestamp': [], 'm1': [], 'm2': [], 'm3': [], 'm4': [], 'bat_timestamp': [], 'bat_volt':[],'cmd_timestamp': [],'cmd_thrust': [],'cmd_act_thrust':[], 'cmd_roll':[], 'cmd_pitch':[], 'cmd_yawrate':[], 'stabilizer_timestamp':[], 'stabilizer_thrust':[]}
+    INPUTS = {'motor_timestamp': [], 'm1': [], 'm2': [], 'm3': [], 'm4': [], 'bat_timestamp': [], 'bat_volt':[],'cmd_timestamp': [],'cmd_thrust': [],'cmd_act_thrust':[], 'cmd_roll':[], 'cmd_pitch':[], 'cmd_yawrate':[], 'stabilizer_timestamp':[], 'stabilizer_thrust':[], 'des_timestamp':[],'des_thrust':[],'des_roll':[],'des_pitch':[],'des_yaw':[]}
     
     OUTPUTS = {'mocap_output_timestamp': [], 'mocap_x': [], 'mocap_y': [], 'mocap_z': [], 'mocap_qx': [], 'mocap_qy': [], 'mocap_qz': [], 'mocap_qw': [],
                'stateZ_timestamp':[],'stateZ_x':[],'stateZ_y':[],'stateZ_z':[],'stateZ_quat':[],'stateZ_vx':[],'stateZ_vy':[],'stateZ_vz':[],'stateZ_rollrate':[],'stateZ_pitchrate':[],'stateZ_yawrate':[]}# 'state_timestamp':[],'state_roll':[],'state_pitch':[], 'state_yaw':[],'state_qx':[],'state_qy':[],'state_qz':[],'state_qw':[]} #               'state_timestamp':[],'state_qx':[],'state_qy':[],'state_qz':[],'state_qw':[],'state_timestamp':[],'state_x':[], 'state_y':[],'state_z':[],'state_roll':[],'state_pitch':[], 'state_yaw':[],
@@ -474,7 +495,7 @@ if __name__ == '__main__':
         ds = {**INPUTS, **OUTPUTS}
         DF = pd.DataFrame.from_dict(ds, orient='index')
         DF = DF.transpose()
-        DF.to_csv('/home/rajpal/CF programs/pos_level_cont/datasets/dynamics_dataset {}.csv'.format(time_string))
+        DF.to_csv('/home/rajpal/github_dat/Drones-C3BF/data_log/dynamics_dataset {}.csv'.format(time_string))
         print("written to CSV")
 
 

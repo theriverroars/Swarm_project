@@ -14,13 +14,13 @@ class Quad3D():
         """
         self.g = 9.8
         """float: Gravity acceleration, in meters per second squared."""
-        self.mass = 0.027
+        self.mass = 0.0316
         """float: The mass of quad from environment."""
-        self.inertia_xx = 2.3951e-5#env.J[0][0]
+        self.inertia_xx =1.395e-5#env.J[0][0]
         """float: The inertia of quad around x axis."""
-        self.arm_length = 0.0397#env.L
+        self.arm_length = 0.046#env.L
         """float: The inertia of quad around x axis."""
-        self.timestep = 0.0166#env.TIMESTEP
+        self.timestep = 0.001#env.TIMESTEP
         """float: Simulation and control timestep."""
         self.last_rpy = np.zeros(3)
         """ndarray: Store the last roll, pitch, and yaw."""
@@ -41,23 +41,23 @@ class Quad3D():
 
         self.matrix_u2rpm_inv = np.linalg.inv(self.matrix_u2rpm)
 
-        self.p_coeff_position["x"] = 0.7 * 0.7
-        self.d_coeff_position["x"] = 2 * 0.5 * 0.7
+        self.p_coeff_position["x"] = 0.5 #0.7 * 0.7 #0.0005
+        self.d_coeff_position["x"] = 0.7 #2 * 0.5 * 0.7 #0.05
 
-        self.p_coeff_position["z"] = 0.8
-        self.d_coeff_position["z"] = 2 * 0.5 * 0.7
+        self.p_coeff_position["z"] = 0.5 #0.7 * 0.7 #0.0005
+        self.d_coeff_position["z"] = 0.7 #2 * 0.5 * 0.7 #0.05
         
-        self.p_coeff_position["y"] = 0.7 * 0.7
-        self.d_coeff_position["y"] = 2 * 0.5 * 0.7
+        self.p_coeff_position["y"] = 0.5 #0.7 * 0.7#
+        self.d_coeff_position["y"] = 0.7 #2 * 0.5 * 0.7 * 1.5#0
         
-        self.p_coeff_position["r"] = 0.005 #0.7 * 0.7*0.9 
-        self.d_coeff_position["r"] = 0.5#2 * 2.5 * 0.7 * 1.5*0.1
+        self.p_coeff_position["r"] = 0.4#0.7 * 0.7*0.9 #.0005 #0.7 * 0.7*0.9 
+        self.d_coeff_position["r"] = 1#2 * 2.5 * 0.7 * 1.5#.05#2 * 2.5 * 0.7 * 1.5*0.1
         
-        self.p_coeff_position["p"] =  0.005#0.7 * 0.7*0.95
-        self.d_coeff_position["p"] =  0.5#2 * 2.5 * 0.7 * 1.5
+        self.p_coeff_position["p"] =  0.5#0.7 * 0.7*0.9 #0.7 * 0.7*0.95
+        self.d_coeff_position["p"] =  1 #2 * 2.5 * 0.7 * 1.5#2 * 2.5 * 0.7 * 1.5
         
-        self.p_coeff_position["ya"] = 0.005 #0.7 * 0.7
-        self.d_coeff_position["ya"] = 0.5#2 * 2.5 * 0.7 * 1.5
+        self.p_coeff_position["ya"] = 0.5 #0.7 * 0.7*0.9#.0005 #0.7 * 0.7
+        self.d_coeff_position["ya"] = 1 #2 * 2.5 * 0.7 * 1.5#.05#2 * 2.5 * 0.7 * 1.5
 
         self.reset()
 
@@ -72,6 +72,7 @@ class Quad3D():
                         target_position,
                         target_velocity=np.zeros(3),
                         target_acceleration=np.zeros(3),
+                        TIMESTEP= 0.001
                         ):
         """Computes the propellers' RPMs for the target state, given the current state.
 
@@ -96,6 +97,7 @@ class Quad3D():
             (4,)-shaped array of ints containing the desired RPMs of each propeller.
         """
         self.control_counter += 1
+        self.timestep = TIMESTEP
 
         # Compute roll, pitch, and yaw rates
         current_rpy_dot = (current_rpy - self.last_rpy) / self.timestep
@@ -126,7 +128,7 @@ class Quad3D():
 
         # Calculate desired roll and rates given by PD
         desired_roll = np.arctan((x_ddot*np.sin(current_rpy[2]) - y_ddot*np.cos(current_rpy[2])) / (self.g + z_ddot)) #-y_ddot/(self.g + z_ddot)#
-        desired_roll_dot = (desired_roll - current_rpy[0]) / 0.004
+        desired_roll_dot = (desired_roll - current_rpy[0]) / self.timestep
         self.old_roll = desired_roll
         self.old_roll_dot = desired_roll_dot
         roll_ddot = self.pd_control(desired_roll, 
@@ -138,7 +140,7 @@ class Quad3D():
                                     )
 
         desired_pitch = np.arctan((x_ddot*np.cos(current_rpy[2]) + y_ddot*np.sin(current_rpy[2]) )/ (self.g + z_ddot)) #x_ddot/(self.g + z_ddot)#
-        desired_pitch_dot = (desired_pitch - current_rpy[1]) / 0.004
+        desired_pitch_dot = (desired_pitch - current_rpy[1]) / self.timestep
         self.old_pitch = desired_pitch
         self.old_pitch_dot = desired_pitch_dot
         pitch_ddot = self.pd_control(desired_pitch, 
@@ -217,6 +219,6 @@ class Quad3D():
         """
         u = desired_acceleration + \
             self.d_coeff_position[opt] * (desired_velocity - current_velocity) + \
-            self.p_coeff_position[opt] * (desired_position - current_position)
+            self.p_coeff_position[opt] * (desired_position - current_position) 
 
         return u

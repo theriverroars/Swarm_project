@@ -48,26 +48,26 @@ CF_BODY = 'cf'
 deck_attached_event = Event()
 logging.basicConfig(level=logging.ERROR)
 
-path = '/home/rajpal/github_dat/Drones-C3BF-hardware/results/save-flight--01.03.2023_13.24.04/'
+# path = '/home/rajpal/github_dat/Drones-C3BF-hardware/results/save-flight--01.03.2023_13.24.04/'
 
-x = np.loadtxt(path + 'x0.csv',
-                 delimiter=",", dtype=float)
+# x = np.loadtxt(path + 'x0.csv',
+#                  delimiter=",", dtype=float)
 
  
-t = x[:,0]
-x = x[:,1]
+# t = x[:,0]
+# x = x[:,1]
 
-y = np.loadtxt(path + 'y0.csv',
-                 delimiter=",", dtype=float)
-y = y[:,1]
+# y = np.loadtxt(path + 'y0.csv',
+#                  delimiter=",", dtype=float)
+# y = y[:,1]
 
-z = np.loadtxt(path + 'z0.csv',
-                 delimiter=",", dtype=float)
-z = z[:,1]
+# z = np.loadtxt(path + 'z0.csv',
+#                  delimiter=",", dtype=float)
+# z = z[:,1]
 
 
 # path parameters
-t_run = t[-1]
+t_run = 10
 hieght = 0.4
 t_lift = 5
 t_land = 1
@@ -295,7 +295,7 @@ def run_sequence(scf):
         t = t_now-t_in
         # print(t)
         
-        # rd,_,_ = path_pars(t-t_lift,t_run,c = 0.2, tilt=0,rd_init = r_init,shape = 'lissajous')
+        rd,_,_ = path_pars(t-t_lift,t_run,c = 0.2, tilt=0,rd_init = r_init,shape = 'line')
         # print('Setting position {},time {}'.format(rd,t))
    
         if t < t_lift:
@@ -307,9 +307,9 @@ def run_sequence(scf):
                 time.sleep(0.001)
         elif t < n_iters*t_run + t_lift:
             for i in range(10):
-                cf.commander.send_position_setpoint(x[j],
-                                                y[j],
-                                                z[j],
+                cf.commander.send_position_setpoint(rd[0],
+                                                rd[1],
+                                                rd[2],
                                                 0)
                 j = j+1
                 time.sleep(0.0166)
@@ -403,7 +403,7 @@ if __name__ == '__main__':
 
     # init_pos = mocap.getpose()
     # r_init = np.array([init_pos.x,init_pos.y,hieght])
-    r_init = np.array([x[0], y[0], z[0]])
+    r_init = np.array([0, 0, hieght])
     t_in = time.time()
 
     with SyncCrazyflie(uri, cf=Crazyflie(rw_cache='./cache')) as scf:

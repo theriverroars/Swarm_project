@@ -168,6 +168,22 @@ def path_pars(t,t_end,c,tilt,rd_init, shape):
         rd_ddot = np.array([-4*c*((0.2*np.pi/n)**2)*np.sin(0.4*np.pi*t/n)*np.cos(tilt),
                            -3*c*((0.4*np.pi/n)**2)*np.sin(0.2*np.pi*t/n),
                            -4*c*((0.2*np.pi/n)**2)*np.sin(0.4*np.pi*t)*np.sin(tilt)])
+        
+
+    elif shape == 'line':
+        
+
+        rd = np.array([t/t_end + rd_init[0],
+                       rd_init[1],
+                       rd_init[2]])
+
+        rd_dot = np.array([1/t_end,
+                           0,
+                           0])
+    
+        rd_ddot = np.array([0,
+                            0,
+                            0])
 
 
     else:
