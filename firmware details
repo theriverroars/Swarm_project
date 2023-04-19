@@ -1,0 +1,8 @@
+static struct mat33 CRAZYFLIE_INERTIA =
+    {{{16.6e-6f, 0.83e-6f, 0.72e-6f},
+      {0.83e-6f, 16.6e-6f, 1.8e-6f},
+      {0.72e-6f, 1.8e-6f, 29.3e-6f}}};
+      
+      
+armlength = 0.046
+thrust to Toque = 0.005964552
