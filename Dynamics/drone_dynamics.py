@@ -20,13 +20,23 @@ def drone_dynamics(params,
         ## params
         KF = 3.1582e-10
         KM = 7.9379e-12
+        thr_2_torque = 0.005964552
         L = 0.046#0.0397
         DRONE_MODEL = "C2FP"
-        IXX = 0.0024#2.3951e-3 #1.395e-5#2.3951e-5
-        IYY = 0.0024#2.3951e-3 #1.436e-5#2.3951e-5
-        IZZ = 0.0458#3.2347e-3 #2.173e-5#3.2347e-5
+        # IXX = 0.0024#2.3951e-3 #1.395e-5#2.3951e-5
+        # IYY = 0.0024#2.3951e-3 #1.436e-5#2.3951e-5
+        # IZZ = 0.0458#3.2347e-3 #2.173e-5#3.2347e-5
         
-        M = 0.036#0.0316
+        IXX = 1.66e-5
+        IYY = 1.66e-5
+        IZZ = 2.93e-5
+        
+        IXY = 0.83e-6
+        IYZ = 1.8e-6
+        IXZ = 0.72e-6
+        
+        
+        M = 0.0366#0.0316
         GRAVITY = 9.81*M
 
 
@@ -44,7 +54,8 @@ def drone_dynamics(params,
         # rotation = np.array(p.getMatrixFromQuaternion(quat)).reshape(3, 3)
         
         ## Compute Inertia Matrix #####################################
-        J = np.diag([IXX, IYY, IZZ])
+        J = np.diag((0.00109, 0.00109, 0.0033))
+        # J = np.array([[IXX,IXY,IXZ],[IXY, IYY, IYZ],[IXZ, IYZ, IZZ]])
         J_INV = np.linalg.inv(J)
         
         
@@ -52,7 +63,8 @@ def drone_dynamics(params,
         thrust = np.array([0, 0, np.sum(forces)])
         thrust_world_frame = np.dot(rotation, thrust)
         force_world_frame = thrust_world_frame - np.array([0, 0, GRAVITY])
-        z_torques = forces*KM/KF
+        print(force_world_frame, thrust)
+        z_torques = forces*thr_2_torque
         z_torque = (-z_torques[0] + z_torques[1] - z_torques[2] + z_torques[3])
         # if DRONE_MODEL== "CF2X":
         x_torque = (-forces[0] - forces[1] + forces[2] + forces[3]) * (L/np.sqrt(2))
@@ -70,4 +82,4 @@ def drone_dynamics(params,
         pos = pos + TIMESTEP * vel
         rpy = rpy + TIMESTEP * rpy_rates
 
-        return pos, vel, rpy, rpy_rates, thrust, np.array([x_torque, y_torque, z_torque])
+        return pos, vel, acc, rpy, rpy_rates, rpy_rates_deriv, thrust, np.array([x_torque, y_torque, z_torque])
