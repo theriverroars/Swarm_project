@@ -19,7 +19,7 @@ from scipy.spatial.transform import Rotation
 from mocaptools import sqrt, Pose, QtmWrapper
 
 # URI to the Crazyflie to connect to
-uri = uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E702')
+uri = uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E701')
 QTM_IP = '192.168.0.110' 
 CF_BODY = 'cf'
 
@@ -273,7 +273,7 @@ def run_sequence(scf):
         t = t_now-t_in
         # print(t)
         
-        rd,_,_ = path_pars(t-t_lift,t_run,c = 0.2, tilt=0,rd_init = r_init,shape = 'lissajous')
+        rd,_,_ = path_pars(t-t_lift,t_run,c = 0.3, tilt=0,rd_init = r_init,shape = 'tricuspid')
         # print('Setting position {},time {}'.format(rd,t))
    
         if t < t_lift:
@@ -435,7 +435,7 @@ if __name__ == '__main__':
         ds = {**INPUTS, **OUTPUTS}
         DF = pd.DataFrame.from_dict(ds, orient='index')
         DF = DF.transpose()
-        DF.to_csv('/home/rajpal/CF programs/pos_level_cont/datasets/dynamics_dataset {}.csv'.format(time_string))
+        DF.to_csv('/home/rajpal/github_dat/Drones-C3BF/test_log/dynamics_dataset {}.csv'.format(time_string))
         print("written to CSV")
 
 

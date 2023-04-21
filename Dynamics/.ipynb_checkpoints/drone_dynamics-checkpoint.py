@@ -23,20 +23,24 @@ def drone_dynamics(params,
         thr_2_torque = 0.005964552
         L = 0.046#0.0397
         DRONE_MODEL = "C2FP"
-        # IXX = 0.0024#2.3951e-3 #1.395e-5#2.3951e-5
-        # IYY = 0.0024#2.3951e-3 #1.436e-5#2.3951e-5
-        # IZZ = 0.0458#3.2347e-3 #2.173e-5#3.2347e-5
+        # IXX = 2.3951e-5
+        # IYY = 2.3951e-5
+        # IZZ = 3.2347e-5
         
-        IXX = 1.66e-5
-        IYY = 1.66e-5
-        IZZ = 2.93e-5
+        IXX = 4.122766748846959e-05
+        IYY = 0.00010926514751224332
+        IZZ = 0.00010065805138772742
         
-        IXY = 0.83e-6
-        IYZ = 1.8e-6
-        IXZ = 0.72e-6
+#         IXX = 1.66e-5
+#         IYY = 1.66e-5
+#         IZZ = 2.93e-5
+        
+#         IXY = 0.83e-6
+#         IYZ = 1.8e-6
+#         IXZ = 0.72e-6
         
         
-        M = 0.028#0.0316 #0.0366#0.0366#0.0316
+        M = 0.03762730431012316 #0.028#0.0316 #0.0366#0.0366#0.0316
         GRAVITY = 9.81*M
 
 
@@ -54,8 +58,8 @@ def drone_dynamics(params,
         # rotation = np.array(p.getMatrixFromQuaternion(quat)).reshape(3, 3)
         
         ## Compute Inertia Matrix #####################################
-        # J = np.diag((0.00109, 0.00109, 0.0033))
-        J = np.array([[IXX,IXY,IXZ],[IXY, IYY, IYZ],[IXZ, IYZ, IZZ]])
+        J = np.diag((IXX, IYY, IZZ))
+        # J = np.array([[IXX,IXY,IXZ],[IXY, IYY, IYZ],[IXZ, IYZ, IZZ]])
         J_INV = np.linalg.inv(J)
         
         
