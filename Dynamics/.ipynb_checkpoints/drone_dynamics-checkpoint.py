@@ -36,7 +36,7 @@ def drone_dynamics(params,
         IXZ = 0.72e-6
         
         
-        M = 0.0366#0.0366#0.0316
+        M = 0.028#0.0316 #0.0366#0.0366#0.0316
         GRAVITY = 9.81*M
 
 
@@ -54,8 +54,8 @@ def drone_dynamics(params,
         # rotation = np.array(p.getMatrixFromQuaternion(quat)).reshape(3, 3)
         
         ## Compute Inertia Matrix #####################################
-        J = np.diag((0.00109, 0.00109, 0.0033))
-        # J = np.array([[IXX,IXY,IXZ],[IXY, IYY, IYZ],[IXZ, IYZ, IZZ]])
+        # J = np.diag((0.00109, 0.00109, 0.0033))
+        J = np.array([[IXX,IXY,IXZ],[IXY, IYY, IYZ],[IXZ, IYZ, IZZ]])
         J_INV = np.linalg.inv(J)
         
         
