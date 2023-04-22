@@ -278,8 +278,8 @@ def run_sequence(scf):
             # params['vel'] = xyz_dot
             params['quat'] = decompressquat(OUTPUTS['stateZ_quat'][-1])
             params['rpy'] = comp_quat_to_euler((OUTPUTS['stateZ_quat'][-1])) # in radians
-            #params['rpy_rates'] = np.array([OUTPUTS['stateZ_rollrate'][-1], OUTPUTS['stateZ_pitchrate'][-1], OUTPUTS['stateZ_yawrate'][-1]])/1000 # in radians/s
-            params['rpy_rates'] = rpy_rates
+            params['rpy_rates'] = np.array([OUTPUTS['stateZ_rollrate'][-1], OUTPUTS['stateZ_pitchrate'][-1], OUTPUTS['stateZ_yawrate'][-1]])/1000 # in radians/s
+            # params['rpy_rates'] = rpy_rates
             params['dt'] = (OUTPUTS['stateZ_timestamp'][-1]-OUTPUTS['stateZ_timestamp'][-2])/1000 #s
             
             

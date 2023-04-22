@@ -104,12 +104,15 @@ def log_battery_voltage(timestamp, data, logconf):
 def log_state_callback(timestamp, data, logconf):
     global OUTPUTS, start_time
     OUTPUTS['state_timestamp'].append(timestamp)
+    OUTPUTS['state_ax'].append(data['stateEstimate.ax'])
+    OUTPUTS['state_ay'].append(data['stateEstimate.ay'])
+    OUTPUTS['state_az'].append(data['stateEstimate.az'])
     # OUTPUTS['state_x'].append(data['stateEstimate.x'])
     # OUTPUTS['state_y'].append(data['stateEstimate.y'])
     # OUTPUTS['state_z'].append(data['stateEstimate.z'])
-    # OUTPUTS['state_roll'].append(data['stateEstimate.roll'])
-    # OUTPUTS['state_pitch'].append(data['stateEstimate.pitch'])
-    # OUTPUTS['state_yaw'].append(data['stateEstimate.yaw'])
+    OUTPUTS['state_roll'].append(data['stateEstimate.roll'])
+    OUTPUTS['state_pitch'].append(data['stateEstimate.pitch'])
+    OUTPUTS['state_yaw'].append(data['stateEstimate.yaw'])
     # OUTPUTS['state_qx'].append(data['stateEstimate.qx'])
     # OUTPUTS['state_qy'].append(data['stateEstimate.qy'])
     # OUTPUTS['state_qz'].append(data['stateEstimate.qz'])
@@ -126,6 +129,9 @@ def log_state_rate_callback(timestamp, data, logconf):
     OUTPUTS['stateZ_vx'].append(data['stateEstimateZ.vx'])
     OUTPUTS['stateZ_vy'].append(data['stateEstimateZ.vy'])
     OUTPUTS['stateZ_vz'].append(data['stateEstimateZ.vz'])
+    # OUTPUTS['stateZ_ax'].append(data['stateEstimateZ.ax'])
+    # OUTPUTS['stateZ_ay'].append(data['stateEstimateZ.ay'])
+    # OUTPUTS['stateZ_az'].append(data['stateEstimateZ.az'])
     OUTPUTS['stateZ_rollrate'].append(data['stateEstimateZ.rateRoll'])
     OUTPUTS['stateZ_pitchrate'].append(data['stateEstimateZ.ratePitch'])
     OUTPUTS['stateZ_yawrate'].append(data['stateEstimateZ.rateYaw'])
@@ -273,7 +279,7 @@ def run_sequence(scf):
         t = t_now-t_in
         # print(t)
         
-        rd,_,_ = path_pars(t-t_lift,t_run,c = 0.3, tilt=0,rd_init = r_init,shape = 'tricuspid')
+        rd,_,_ = path_pars(t-t_lift,t_run,c = 0.3, tilt=0,rd_init = r_init,shape = 'lissajous')
         # print('Setting position {},time {}'.format(rd,t))
    
         if t < t_lift:
@@ -314,7 +320,7 @@ if __name__ == '__main__':
     INPUTS = {'motor_timestamp': [], 'm1': [], 'm2': [], 'm3': [], 'm4': [], 'bat_timestamp': [], 'bat_volt':[],'cmd_timestamp': [],'cmd_thrust': []}
     
     OUTPUTS = {'mocap_output_timestamp': [], 'mocap_x': [], 'mocap_y': [], 'mocap_z': [], 'mocap_qx': [], 'mocap_qy': [], 'mocap_qz': [], 'mocap_qw': [],
-               'stateZ_timestamp':[],'stateZ_x':[],'stateZ_y':[],'stateZ_z':[],'stateZ_quat':[],'stateZ_vx':[],'stateZ_vy':[],'stateZ_vz':[],'stateZ_rollrate':[],'stateZ_pitchrate':[],'stateZ_yawrate':[], 'state_timestamp':[],'state_roll':[],'state_pitch':[], 'state_yaw':[]}#,'state_qx':[],'state_qy':[],'state_qz':[],'state_qw':[]} #               'state_timestamp':[],'state_qx':[],'state_qy':[],'state_qz':[],'state_qw':[],'state_timestamp':[],'state_x':[], 'state_y':[],'state_z':[],'state_roll':[],'state_pitch':[], 'state_yaw':[],
+               'stateZ_timestamp':[],'stateZ_x':[],'stateZ_y':[],'stateZ_z':[],'stateZ_quat':[],'stateZ_vx':[],'stateZ_vy':[],'stateZ_vz':[],'state_az':[],'stateZ_rollrate':[],'stateZ_pitchrate':[],'stateZ_yawrate':[], 'state_timestamp':[],'state_timestamp':[] ,'state_ax':[],'state_ay':[],'state_roll':[],'state_pitch':[], 'state_yaw':[]}#,'state_qx':[],'state_qy':[],'state_qz':[],'state_qw':[]} #               'state_timestamp':[],'state_qx':[],'state_qy':[],'state_qz':[],'state_qw':[],'state_timestamp':[],'state_x':[], 'state_y':[],'state_z':[],'state_roll':[],'state_pitch':[], 'state_yaw':[],
     # INPUTS = {'motor_timestamp': [], 'm1': [], 'm2': [], 'm3': [], 'm4': [],'cmd_timestamp': [],'cmd_thrust': [], 'cmd_act_thrust': [], 'cmd_roll':[], 'cmd_pitch':[], 'cmd_yawrate':[], 'stab_timestamp': [],'stab_thrust': []}
     
     # OUTPUTS = {'stateZ_timestamp':[],'stateZ_quat':[],'stateZ_yawrate':[]}#,'state_qx':[],'state_qy':[],'state_qz':[],'state_qw':[]} #               'state_timestamp':[],'state_qx':[],'state_qy':[],'state_qz':[],'state_qw':[],'state_timestamp':[],'state_x':[], 'state_y':[],'state_z':[],'state_roll':[],'state_pitch':[], 'state_yaw':[],
@@ -343,13 +349,13 @@ if __name__ == '__main__':
     # lg_gyro.add_variable('gyro.y', 'float')
     # lg_gyro.add_variable('gyro.z', 'float')
     
-    # lg_state = LogConfig('stateEstimate', period_in_ms=10)
-    # # lg_state.add_variable('stateEstimate.x', 'float')
-    # # lg_state.add_variable('stateEstimate.y', 'float')
-    # # lg_state.add_variable('stateEstimate.z', 'float')
-    # lg_state.add_variable('stateEstimate.roll', 'float')
-    # lg_state.add_variable('stateEstimate.pitch', 'float')
-    # lg_state.add_variable('stateEstimate.yaw', 'float')
+    lg_state = LogConfig('stateEstimate', period_in_ms=10)
+    lg_state.add_variable('stateEstimate.ax', 'float')
+    lg_state.add_variable('stateEstimate.ay', 'float')
+    lg_state.add_variable('stateEstimate.az', 'float')
+    lg_state.add_variable('stateEstimate.roll', 'float')
+    lg_state.add_variable('stateEstimate.pitch', 'float')
+    lg_state.add_variable('stateEstimate.yaw', 'float')
     # lg_state.add_variable('stateEstimate.qx', 'float')
     # lg_state.add_variable('stateEstimate.qy', 'float')
     # lg_state.add_variable('stateEstimate.qz', 'float')
@@ -389,7 +395,7 @@ if __name__ == '__main__':
         scf.cf.log.add_config(bat_volt)
         # scf.cf.log.add_config(lg_stab)
         scf.cf.log.add_config(lg_cont)
-        # scf.cf.log.add_config(lg_state)   
+        scf.cf.log.add_config(lg_state)   
         scf.cf.log.add_config(lg_state_rate)
         # scf.cf.log.add_config(lg_gyro)
 
@@ -397,7 +403,7 @@ if __name__ == '__main__':
         bat_volt.data_received_cb.add_callback(log_battery_voltage)
         # lg_stab.data_received_cb.add_callback(log_stabilizer_callback)
         lg_cont.data_received_cb.add_callback(log_controller_callback)     
-        # lg_state.data_received_cb.add_callback(log_state_callback)   
+        lg_state.data_received_cb.add_callback(log_state_callback)   
         lg_state_rate.data_received_cb.add_callback(log_state_rate_callback) 
         # lg_gyro.data_received_cb.add_callback(log_gyro_callback)       
 
@@ -406,7 +412,7 @@ if __name__ == '__main__':
         lg_motor.start() 
         # lg_stab.start()
         lg_cont.start()
-        # lg_state.start()
+        lg_state.start()
         # lg_gyro.start()
  
       
@@ -425,7 +431,7 @@ if __name__ == '__main__':
         bat_volt.stop()
         lg_motor.stop() 
         lg_cont.stop()
-        # lg_state.stop()
+        lg_state.stop()
         # lg_gyro.stop()
         lg_state_rate.stop()
 
