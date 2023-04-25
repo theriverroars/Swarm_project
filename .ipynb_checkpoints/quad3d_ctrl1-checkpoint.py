@@ -41,18 +41,18 @@ class Quad3D():
 
         self.matrix_u2rpm_inv = np.linalg.inv(self.matrix_u2rpm)
 
-        self.p_coeff_position["x"] = 6*0.05  #0.0005
-        self.d_coeff_position["x"] = 50 * 0.08 #0.05
-        self.p_coeff_position["y"] = 6*0.05 #
-        self.d_coeff_position["y"] = 50 * 0.08 #0
-        self.p_coeff_position["z"] = 6*0.05  #0.0005
-        self.d_coeff_position["z"] = 50 * 0.08  #0.05
-        self.p_coeff_position["r"] = 0.5*0.07 #.0005 #0.7 * 0.7*0.9 
-        self.d_coeff_position["r"] = 2 * 0.5 #.05#2 * 2.5 * 0.7 * 1.5*0.1
-        self.p_coeff_position["p"] = 0.5*0.07  #0.7 * 0.7*0.95
-        self.d_coeff_position["p"] = 2 * 0.5  #2 * 2.5 * 0.7 * 1.5
-        self.p_coeff_position["ya"] = 0.7 * 0.07#.0005 #0.7 * 0.7
-        self.d_coeff_position["ya"] = 2 * 0.5 #.05#2 * 2.5 * 0.7 * 1.5
+        self.p_coeff_position["x"] = 0.00* 0.05  #0.0005
+        self.d_coeff_position["x"] = 0.00*2 * 0.08 #0.05
+        self.p_coeff_position["y"] = 0.00* 0.05 #
+        self.d_coeff_position["y"] = 0.00*2 * 0.08 #0
+        self.p_coeff_position["z"] = 0.00* 0.05  #0.0005
+        self.d_coeff_position["z"] = 0.00*2 * 0.08  #0.05
+        self.p_coeff_position["r"] = 0.00* 0.5*0.07 #.0005 #0.7 * 0.7*0.9 
+        self.d_coeff_position["r"] = 0.00*2 * 0.5 #.05#2 * 2.5 * 0.7 * 1.5*0.1
+        self.p_coeff_position["p"] = 0.00* 0.5*0.07  #0.7 * 0.7*0.95
+        self.d_coeff_position["p"] = 0.00*2 * 0.5  #2 * 2.5 * 0.7 * 1.5
+        self.p_coeff_position["ya"] =0.00* 0.7 * 0.07#.0005 #0.7 * 0.7
+        self.d_coeff_position["ya"] =0.00*2 * 0.5 #.05#2 * 2.5 * 0.7 * 1.5
 
         self.reset()
 

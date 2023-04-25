@@ -27,9 +27,9 @@ def drone_dynamics(params,
         # IYY = 2.3951e-5
         # IZZ = 3.2347e-5
         
-        IXX = 4.122766748846959e-05
-        IYY = 0.00010926514751224332
-        IZZ = 0.00010065805138772742
+        IXX = -0.0030014810428804824
+        IYY = -0.00851011790122801
+        IZZ = -0.00011610129290486631
         
 #         IXX = 1.66e-5
 #         IYY = 1.66e-5
@@ -40,14 +40,14 @@ def drone_dynamics(params,
 #         IXZ = 0.72e-6
         
         
-        M = 0.316#0.035952119187436696 #0.036 #0.0316# 0.03762730431012316 #0.028#0.0316 #0.0366#0.0366#0.0316
+        M = 0.0363 #0.0363 #0.028#0.0316 #0.0366#0.0366#0.0316
         GRAVITY = 9.81*M
 
 
 
         #### Current state #########################################
-        pos = params['pos']
         rpy = params['rpy']
+        vel = params['vel']
         TIMESTEP = params['dt']
         
         r = R.from_euler('xyz', rpy, degrees=False)
@@ -55,19 +55,14 @@ def drone_dynamics(params,
         # rotation = np.array(p.getMatrixFromQuaternion(quat)).reshape(3, 3)
         
         ## Compute Inertia Matrix #####################################
-        J = np.diag((IXX, IYY, IZZ))
-        # J = np.array([[IXX,IXY,IXZ],[IXY, IYY, IYZ],[IXZ, IYZ, IZZ]])
-        J_INV = np.linalg.inv(J)
         
         
         #### Compute forces and torques ############################
         thrust = np.array([0, 0, np.sum(forces)])
         thrust_world_frame = np.dot(rotation, thrust)
         force_world_frame = thrust_world_frame - np.array([0, 0, GRAVITY])
-        
         acc = force_world_frame / M
+        #### Update state ##########################################
+        vel = vel + TIMESTEP * acc
         
-        r = (acc[0]*np.sin(rpy[2]) - acc[1]*np.cos(rpy[2]) )/(9.81 + acc[2])
-        p = (acc[0]*np.cos(rpy[2]) + acc[1]*np.sin(rpy[2]) )/(9.81+ acc[2])
-
-        return acc, r, p, np.sum(forces)
+        return vel, acc
