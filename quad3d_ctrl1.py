@@ -1,5 +1,6 @@
 import numpy as np
 # from gym_cbf.envs.BaseAviary import BaseAviary
+from scipy import integrate
 
 class Quad3D():
     """"""
@@ -189,7 +190,7 @@ class Quad3D():
         return np.array([propellers_0_rpm, propellers_1_rpm, propellers_2_rpm, propellers_3_rpm])
 
     def compute_xyz_ddot(self,
-                        rpms
+                        rpms, t,
                         ):
         """Computes the propellers' RPMs for the target state, given the current state.
 
@@ -218,11 +219,19 @@ class Quad3D():
         r_ddot = u2/(self.inertia_xx)
         p_ddot = -u3/(self.inertia_xx)
 
-        r_dd.append(r_ddot)
-        p_dd.append(p_ddot)
+        time.append(t)
 
-        r = self.intg8(r_dd)
-        p = self.intg8(p_dd)
+        self.r_dd.append(r_ddot)
+        self.p_dd.append(p_ddot)
+        
+        r_dot = integrate.trapz(r_dd,time)
+        p_dot = integrate.trapz(p_dd,time)
+        
+        self.r_d.append(r_dot)
+        self.p_d.append(p_dot)
+        
+        r = integrate.trapz(r_d,time)
+        p = integrate.trapz(p_d,time)
 
         z_ddot = -self.g + u1/(self.mass*np.sqrt((np.tan(r))**2 + (np.tan(p))**2))
         x_ddot = (np.tan(r)*u1)/(self.mass*np.sqrt((np.tan(r))**2 + (np.tan(p))**2))
