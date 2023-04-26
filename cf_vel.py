@@ -285,7 +285,7 @@ def run_sequence(scf):
 
         elif t < n_iters*t_run + t_lift:
             
-            rd,rd_dot,rd_ddot = path_pars(t-t_lift,t_run,c = 0.2, tilt=0,rd_init = r_init,shape = 'tricuspid')
+            rd,rd_dot,rd_ddot = path_pars(t-t_lift,t_run,c = 0.2, tilt=0,rd_init = r_init,shape = 'line')
                 ################################################################
             # put the controller here
             # controller
@@ -305,7 +305,7 @@ def run_sequence(scf):
             
             
             CTRL = Quad3D()
-            x_ddot, y_ddot, z_ddot, rpm = CTRL.compute_control(current_position=params['pos'] ,
+            _, _, _, rpm = CTRL.compute_control(current_position=params['pos'] ,
                                             current_velocity=params['vel'],
                                             current_rpy=params['rpy'],
                                             target_position=rd,
@@ -315,6 +315,10 @@ def run_sequence(scf):
                                             )
 
 
+            t_int += params['dt']
+            time_int.append(t_int)
+
+            x_ddot, y_ddot, z_ddot = CTRL.compute_xyz_ddot(rpm,t_int)
             # gamma = 1
             # qp = QP_Controller_Drone(gamma)
             # u_ref =   rpm
@@ -343,8 +347,7 @@ def run_sequence(scf):
             acc_y_data.append(y_ddot)
             acc_z_data.append(z_ddot)
             
-            t_int += params['dt']
-            time_int.append(t_int)
+
             x_di = integrate.trapz(acc_x_data, time_int)
             y_di = integrate.trapz(acc_y_data, time_int)
             z_di = integrate.trapz(acc_z_data, time_int)
