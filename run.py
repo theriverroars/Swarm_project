@@ -224,6 +224,8 @@ if __name__ == "__main__":
 
         action["0"] = u_star
 
+        x_ddot, y_ddot, z_ddot = CTRL_0.compute_xyz_ddot(action["0"])
+
         bot.update_state(state[0:3], state[10:13], state[7:10], 1/env.SIM_FREQ)
 
         # Compute control for drone 1

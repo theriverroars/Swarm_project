@@ -54,6 +54,11 @@ class Quad3D():
         self.p_coeff_position["ya"] = 0.7 * 0.07#.0005 #0.7 * 0.7
         self.d_coeff_position["ya"] = 2 * 0.5 #.05#2 * 2.5 * 0.7 * 1.5
 
+        self.r_dd =[]
+        self.p_dd =[]
+        self.y_dd =[]
+
+
         self.reset()
 
     def reset(self):
@@ -181,7 +186,49 @@ class Quad3D():
         # Store the last step's roll, pitch, and yaw
         self.last_rpy = current_rpy
 
-        return x_ddot, y_ddot, z_ddot, np.array([propellers_0_rpm, propellers_1_rpm, propellers_2_rpm, propellers_3_rpm])
+        return np.array([propellers_0_rpm, propellers_1_rpm, propellers_2_rpm, propellers_3_rpm])
+
+    def compute_xyz_ddot(self,
+                        rpms
+                        ):
+        """Computes the propellers' RPMs for the target state, given the current state.
+
+        Parameters
+        ----------
+        ndarray
+            (4,)-shaped array of ints containing the desired RPMs of each propeller.
+
+        Returns
+        -------
+        x_ddot : float
+            x_ddot values corresponding to the rpms.
+        y_ddot : float
+            y_ddot values corresponding to the rpms.
+        z_ddot : float
+            z_ddot values corresponding to the rpms.
+        """
+
+        propellers__rpm = self.kf*(rpms)**2
+        u = np.dot(self.matrix_u2rpm, propellers_rpm)
+
+        u1 = self.kf_coeff*u[0]
+        u2 = self.arm_length*self.kf_coeff*u[1]
+        u3 = self.arm_length*self.kf_coeff*u[2]
+
+        r_ddot = u2/(self.inertia_xx)
+        p_ddot = -u3/(self.inertia_xx)
+
+        r_dd.append(r_ddot)
+        p_dd.append(p_ddot)
+
+        r = self.intg8(r_dd)
+        p = self.intg8(p_dd)
+
+        z_ddot = -self.g + u1/(self.mass*np.sqrt((np.tan(r))**2 + (np.tan(p))**2))
+        x_ddot = (np.tan(r)*u1)/(self.mass*np.sqrt((np.tan(r))**2 + (np.tan(p))**2))
+        y_ddot = (np.tan(p)*u1)/(self.mass*np.sqrt((np.tan(r))**2 + (np.tan(p))**2))
+
+        return x_ddot, y_ddot, z_ddot
 
     def pd_control(self,
                    desired_position,
