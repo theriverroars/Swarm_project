@@ -1,5 +1,6 @@
 import numpy as np
 from gym_cbf.envs.BaseAviary import BaseAviary
+from scipy import integrate
 
 class Quad3D():
     """Control class for assignment 2."""
@@ -58,6 +59,16 @@ class Quad3D():
         
         self.p_coeff_position["ya"] = 0.7 * 0.7
         self.d_coeff_position["ya"] = 2 * 2.5 * 0.7
+
+        self.r_dd =[]
+        self.p_dd =[]
+        self.y_dd =[]
+
+        self.r_d =[]
+        self.p_d =[]
+        self.y_d =[]
+
+        self.time = []
 
         self.reset()
 
@@ -184,8 +195,59 @@ class Quad3D():
         # Store the last step's roll, pitch, and yaw
         self.last_rpy = current_rpy
 
-        return np.array([propellers_0_rpm, propellers_1_rpm,
-                         propellers_2_rpm, propellers_3_rpm])
+        return x_ddot, y_ddot, z_ddot,np.array([propellers_0_rpm, propellers_1_rpm, propellers_2_rpm, propellers_3_rpm])
+    
+    def compute_xyz_ddot(self,
+                        rpms, t,
+                        ):
+        """Computes the propellers' RPMs for the target state, given the current state.
+
+        Parameters
+        ----------
+        ndarray
+            (4,)-shaped array of ints containing the desired RPMs of each propeller.
+
+        Returns
+        -------
+        x_ddot : float
+            x_ddot values corresponding to the rpms.
+        y_ddot : float
+            y_ddot values corresponding to the rpms.
+        z_ddot : float
+            z_ddot values corresponding to the rpms.
+        """
+
+        propellers_rpm = np.square(rpms)
+        u = np.dot(self.matrix_u2rpm, propellers_rpm)
+
+        u1 = self.kf_coeff*u[0]
+        u2 = self.arm_length*self.kf_coeff*u[1]
+        u3 = self.arm_length*self.kf_coeff*u[2]
+
+        r_ddot = u2/(self.inertia_xx)
+        p_ddot = -u3/(self.inertia_xx)
+
+        self.time.append(t)
+
+        self.r_dd.append(r_ddot)
+        self.p_dd.append(p_ddot)
+        
+        r_dot = integrate.trapz(self.r_dd,self.time)
+        p_dot = integrate.trapz(self.p_dd,self.time)
+        
+        self.r_d.append(r_dot)
+        self.p_d.append(p_dot)
+        
+        r = integrate.trapz(self.r_d,self.time)
+        p = integrate.trapz(self.p_d,self.time)
+
+        a = u1/(self.mass*np.sqrt((np.tan(r))**2 + (np.tan(p))**2 + 1))
+
+        z_ddot = -self.g + a
+        x_ddot = (np.tan(p)*a)
+        y_ddot = -(np.tan(r)*a)
+
+        return x_ddot, y_ddot, z_ddot
 
     def pd_control(self,
                    desired_position,
