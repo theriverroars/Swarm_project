@@ -69,7 +69,7 @@ class QP_Controller_Drone(QP_Controller):
     def get_reference_control(self):
         return self.u_ref
     
-    def setup_QP(self, bot, c, c_d):
+    def setup_QP(self, bot, k, k_d, m, m_d):
         """
         the function takes bot list and creates symbolic varaibles associated 
         with each bot required for computation in QP. The functions also 
@@ -85,8 +85,22 @@ class QP_Controller_Drone(QP_Controller):
         None.
 
         """
-        c_x, c_y, c_z = c
-        c_x_d, c_y_d, c_z_d = c_d
+
+        k_x, k_y, k_z = k
+        k_x_d, k_y_d, k_z_d = k_d
+
+        m_x, m_y, m_z = m
+        m_x_d, m_y_d, m_z_d = m_d
+
+        c_x = (k_x + m_x)/2
+        c_y = (k_y + m_y)/2
+        c_z = (k_z + m_z)/2
+
+        c_x_d = (k_x_d + m_x_d)/2
+        c_y_d = (k_y_d + m_y_d)/2
+        c_z_d = (k_z_d + m_z_d)/2
+
+
         # Create placholders for symbolic expressions
         self.f = [0] # f Matrix in control system
         self.g = [0] # g Matrix in control system
@@ -140,18 +154,37 @@ class QP_Controller_Drone(QP_Controller):
         p_rel_x = c_x - (bot.sym_x + bot.sym_l*r_x)
         p_rel_y = c_y - (bot.sym_y + bot.sym_l*r_y)
         p_rel_z = c_z - (bot.sym_z + bot.sym_l*r_z)
+
+        k_rel_x = k_x - (bot.sym_x + bot.sym_l*r_x)
+        k_rel_y = k_y - (bot.sym_y + bot.sym_l*r_y)
+        k_rel_z = k_z - (bot.sym_z + bot.sym_l*r_z)
+
+        m_rel_x = m_x - (bot.sym_x + bot.sym_l*r_x)
+        m_rel_y = m_y - (bot.sym_y + bot.sym_l*r_y)
+        m_rel_z = m_z - (bot.sym_z + bot.sym_l*r_z)
         
         # Relative velocity terms
         v_rel_x = c_x_d - (bot.sym_x_d + bot.sym_l*(-bot.sym_w_3*r_y + bot.sym_w_2*r_z))
         v_rel_y = c_y_d - (bot.sym_y_d + bot.sym_l*(-bot.sym_w_1*r_z + bot.sym_w_3*r_x))
         v_rel_z = c_z_d - (bot.sym_z_d + bot.sym_l*(-bot.sym_w_2*r_x + bot.sym_w_1*r_y))
         
-        # # C3BF Candidate
-        # self.h = p_rel_x*v_rel_x + p_rel_y*v_rel_y + p_rel_z*v_rel_z \
-        #     + norm(v_rel_x, v_rel_y, v_rel_z)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.sym_r**2)
+        # C3BF Candidate
+        self.h = p_rel_x*v_rel_x + p_rel_y*v_rel_y + p_rel_z*v_rel_z \
+            + norm(v_rel_x, v_rel_y, v_rel_z)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.sym_r**2)
+        
+        # PC3BF Candidate
+        self.cos1 = (p_rel_x*k_rel_x + p_rel_y*k_rel_y)/norm(k_rel_x, k_rel_y, 0.001)
+        self.cos2 = (p_rel_x*m_rel_x + p_rel_y*m_rel_y)/norm(m_rel_x, m_rel_y, 0.001)
+        self.h1 = p_rel_x*v_rel_x + p_rel_y*v_rel_y + norm(v_rel_x, v_rel_y, 0.001)*(p_rel_x*k_rel_x + p_rel_y*k_rel_y)/norm(k_rel_x, k_rel_y, 0.001)
+        self.h2 = p_rel_x*v_rel_x + p_rel_y*v_rel_y + norm(v_rel_x, v_rel_y, 0.001)*(p_rel_x*m_rel_x + p_rel_y*m_rel_y)/norm(m_rel_x, m_rel_y, 0.001)
+        print('2')
 
-        # Classical CBF
-        self.h = norm(c_x - bot.sym_x, c_y - bot.sym_y, c_z - bot.sym_z)**2 -1
+        # # HO-CBF Candidate
+        # self.h = p_rel_x*v_rel_x + p_rel_y*v_rel_y + p_rel_z*v_rel_z \
+        #     + sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.sym_r**2)
+
+        # # Classical CBF
+        # self.h = norm(c_x - bot.sym_x, c_y - bot.sym_y, c_z - bot.sym_z)**2 -1
             
         rho_h_by_rho_x = diff(self.h, bot.sym_x)
         rho_h_by_rho_y = diff(self.h, bot.sym_y)
@@ -225,6 +258,8 @@ class QP_Controller_Drone(QP_Controller):
 
         d = {uk: uk_gs[i] for i, uk in enumerate(uk_vs)}
 
+        # print(bot.x_dot)
+
         # build value substitution list        
         self.h = np.array(re(self.h.xreplace(d)))
         self.Psi = np.array(re(self.Psi.xreplace(d)))
@@ -235,7 +270,7 @@ class QP_Controller_Drone(QP_Controller):
 
         if self.Psi<0:
             self.u_safe = - np.matmul(self.B, np.linalg.inv(np.matmul(self.C,self.B).astype('float64'))).dot(self.Psi)
-            # print(self.u_safe)
+            # print(self.u_ref + self.u_safe)
         else:
             self.u_safe = 0
         self.u_star = self.u_ref + self.u_safe
