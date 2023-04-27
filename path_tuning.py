@@ -6,7 +6,7 @@ from paths import path_pars
 
 ## path for load
 
-path = '/home/rajpal/github_dat/Drones-C3BF/data_log/tuning/dynamics_dataset Tue Apr 25 22-50-32 2023.csv'
+path = '/home/rajpal/github_dat/Drones-C3BF/data_log/tuning/dynamics_dataset Thu Apr 27 23-26-28 2023.csv'
 
 df = pd.read_csv(path)
 

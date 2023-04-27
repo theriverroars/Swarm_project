@@ -25,6 +25,22 @@ from scipy.signal import savgol_filter
 from controllers.QP_controller_drone import QP_Controller_Drone
 from quad3d_ctrl1 import Quad3D
 
+from bots.drone import Drone
+from controllers.QP_controller_drone import QP_Controller_Drone
+
+# Creating Bots
+
+bot1_config_file_path = 'bots//bot_config//drone1.json'
+bot2_config_file_path = 'bots//bot_config//drone2.json'
+bot3_config_file_path = 'bots//bot_config//drone3.json'
+
+drone1 = Drone.from_JSON(bot1_config_file_path)
+drone2 = Drone.from_JSON(bot2_config_file_path)
+
+kf = 3.16e-10
+
+bot = drone1
+
 from scipy import integrate
 
 from Dynamics.drone_dynamics_cart import drone_dynamics
@@ -57,7 +73,7 @@ CF_BODY = 'cf'
 # ]
 
 # path parameters
-t_run = 15
+t_run = 10
 hieght = 0.4
 t_lift = 5
 t_land = 2
@@ -254,8 +270,10 @@ def run_sequence(scf):
     acc_x_data = []
     acc_y_data = []
     acc_z_data = []
+
+    CTRL = Quad3D()
     
-    while np.absolute(OUTPUTS['stateZ_x'][-1])/1000 < 3 and np.absolute(OUTPUTS['stateZ_y'][-1])/1000 < 3 and (OUTPUTS['stateZ_z'][-1])/1000 < 1.0:
+    while np.absolute(OUTPUTS['stateZ_x'][-1])/1000 < 3.5 and np.absolute(OUTPUTS['stateZ_y'][-1])/1000 < 3.5 and (OUTPUTS['stateZ_z'][-1])/1000 < 1.0:
         t_now = time.time()
         t = t_now-t_in
         ## target values
@@ -285,7 +303,7 @@ def run_sequence(scf):
 
         elif t < n_iters*t_run + t_lift:
             
-            rd,rd_dot,rd_ddot = path_pars(t-t_lift,t_run,c = 0.2, tilt=0,rd_init = r_init,shape = 'line')
+            rd,rd_dot,rd_ddot = path_pars(t-t_lift,t_run,c = 0.3, tilt=0,rd_init = r_init,shape = 'line')
                 ################################################################
             # put the controller here
             # controller
@@ -298,43 +316,52 @@ def run_sequence(scf):
             params['vel'] = np.array([OUTPUTS['stateZ_vx'][-1], OUTPUTS['stateZ_vy'][-1], OUTPUTS['stateZ_vz'][-1]])/1000 # position in m
             # params['vel'] = xyz_dot
             params['quat'] = decompressquat(OUTPUTS['stateZ_quat'][-1])
-            params['rpy'] = comp_quat_to_euler((OUTPUTS['stateZ_quat'][-1])) # in radians
+            r_sen, p_sen, y_sen = comp_quat_to_euler((OUTPUTS['stateZ_quat'][-1])) # in radians
+            params['rpy'] = np.array([r_sen, p_sen, y_sen])
             params['rpy_rates'] = np.array([OUTPUTS['stateZ_rollrate'][-1], OUTPUTS['stateZ_pitchrate'][-1], OUTPUTS['stateZ_yawrate'][-1]])/1000 # in radians/s
             # params['rpy_rates'] = rpy_rates
             params['dt'] = (OUTPUTS['stateZ_timestamp'][-1]-OUTPUTS['stateZ_timestamp'][-2])/1000 #s
             
             
-            CTRL = Quad3D()
-            _, _, _, rpm = CTRL.compute_control(current_position=params['pos'] ,
+            
+            x_ddot, y_ddot, z_ddot, rpm = CTRL.compute_control(current_position=params['pos'] ,
                                             current_velocity=params['vel'],
                                             current_rpy=params['rpy'],
                                             target_position=rd,
                                             target_velocity=rd_dot,
                                             target_acceleration=rd_ddot,
-                                            TIMESTEP=0.001#params['dt']
+                                            TIMESTEP=params['dt']
                                             )
+            
+            print('current_rpy:',params['rpy_rates'][0], params['rpy_rates'][1])
 
 
             t_int += params['dt']
             time_int.append(t_int)
 
-            x_ddot, y_ddot, z_ddot = CTRL.compute_xyz_ddot(rpm,t_int)
+            print('rpm',rpm.dtype)
+
+            
             # gamma = 1
             # qp = QP_Controller_Drone(gamma)
             # u_ref =   rpm
-            # f_u_ref = kf * np.square(u_ref)
+            # f_u_ref = 3.16e-10 * np.square(u_ref)
             # qp.set_reference_control(f_u_ref)
             # # print(obs_1[0:3], obs_1[10:13])
-            # qp.setup_QP(bot, obs_3[0:3], obs_3[10:13])
+            # qp.setup_QP(bot, [1.5, 0, 0.40],[0,0,0])
                 
 
-            # Simulation
-            # Solve QP
+            # # Simulation
+            # # Solve QP
             # state_of_QP, value_of_h = qp.solve_QP(bot)
             
             # # Bot Kinematics
             # u_star = qp.get_optimal_control()
-            #   rpm = u_star
+            # rpm = u_star
+
+            # print(rpm.dtype)
+
+            # x_ddot, y_ddot, z_ddot = CTRL.compute_xyz_ddot(rpm, params['dt'], params['rpy'], params['rpy_rates'])
 
             KF = 3.16e-10
             thrusts = KF*(rpm**2)
@@ -356,6 +383,7 @@ def run_sequence(scf):
             ################################################################
             print('rpyt setpoints:', thrusts, net_thrust ,net_thrust_pwm)
             print('acc:', x_ddot, y_ddot, z_ddot)
+            # print('acc1:', x_ddot1, y_ddot1, z_ddot1)
             # cfcommander.send_zdistance_setpoint(r, p, y, 0.4)
 
             INPUTS['des_timestamp'].append(t)
@@ -421,7 +449,7 @@ if __name__ == '__main__':
     cflib.crtp.init_drivers()
     time_string = time.ctime().replace(':', '-')
     start_time = time.time()
-    INPUTS = {'motor_timestamp': [], 'm1': [], 'm2': [], 'm3': [], 'm4': [], 'bat_timestamp': [], 'bat_volt':[],'cmd_timestamp': [],'cmd_thrust': [],'cmd_act_thrust':[], 'cmd_roll':[], 'cmd_pitch':[], 'cmd_yawrate':[], 'stabilizer_timestamp':[], 'stabilizer_thrust':[], 'des_timestamp':[],'des_x':[],'des_y':[],'des_z':[], 'des_timestamp':[],'des_vx':[],'des_vy':[],'des_vz':[]}
+    INPUTS = {'motor_timestamp': [], 'm1': [], 'm2': [], 'm3': [], 'm4': [], 'bat_timestamp': [], 'bat_volt':[],'cmd_timestamp': [],'cmd_thrust': [],'cmd_act_thrust':[], 'cmd_roll':[], 'cmd_pitch':[], 'cmd_yawrate':[], 'stabilizer_timestamp':[], 'stabilizer_thrust':[], 'des_timestamp':[],'des_x':[],'des_y':[],'des_z':[], 'des_timestamp':[],'des_vx':[],'des_vy':[],'des_vz':[], }
     
     OUTPUTS = {'mocap_output_timestamp': [], 'mocap_x': [], 'mocap_y': [], 'mocap_z': [], 'mocap_qx': [], 'mocap_qy': [], 'mocap_qz': [], 'mocap_qw': [],
                'stateZ_timestamp':[],'stateZ_x':[],'stateZ_y':[],'stateZ_z':[],'stateZ_quat':[],'stateZ_vx':[],'stateZ_vy':[],'stateZ_vz':[],'stateZ_rollrate':[],'stateZ_pitchrate':[],'stateZ_yawrate':[]}# 'state_timestamp':[],'state_roll':[],'state_pitch':[], 'state_yaw':[],'state_qx':[],'state_qy':[],'state_qz':[],'state_qw':[]} #               'state_timestamp':[],'state_qx':[],'state_qy':[],'state_qz':[],'state_qw':[],'state_timestamp':[],'state_x':[], 'state_y':[],'state_z':[],'state_roll':[],'state_pitch':[], 'state_yaw':[],

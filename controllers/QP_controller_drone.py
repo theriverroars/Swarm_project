@@ -64,7 +64,7 @@ class QP_Controller_Drone(QP_Controller):
         propellers_2_rpm = sqrt(self.u_star[2][0])
 
         return np.array([propellers_0_rpm, propellers_1_rpm,
-                         propellers_2_rpm, propellers_3_rpm])
+                         propellers_2_rpm, propellers_3_rpm], dtype='float64')
     
     def get_reference_control(self):
         return self.u_ref
@@ -152,6 +152,10 @@ class QP_Controller_Drone(QP_Controller):
 
         # Classical CBF
         self.h = norm(c_x - bot.sym_x, c_y - bot.sym_y, c_z - bot.sym_z)**2 -1
+
+        # C3BF Candidate
+        self.h = p_rel_x*v_rel_x + p_rel_y*v_rel_y + p_rel_z*v_rel_z \
+            + norm(v_rel_x, v_rel_y, v_rel_z)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.sym_r**2)
             
         rho_h_by_rho_x = diff(self.h, bot.sym_x)
         rho_h_by_rho_y = diff(self.h, bot.sym_y)

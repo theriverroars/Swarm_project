@@ -21,7 +21,7 @@ class Quad3D():
         """float: The inertia of quad around x axis."""
         self.arm_length = 0.046#env.L
         """float: The inertia of quad around x axis."""
-        self.timestep = 0.001#env.TIMESTEP
+        self.timestep = 0.01#env.TIMESTEP
         """float: Simulation and control timestep."""
         self.last_rpy = np.zeros(3)
         """ndarray: Store the last roll, pitch, and yaw."""
@@ -35,18 +35,18 @@ class Quad3D():
         """dict[str, float]: Derivative coefficient(s) for position control."""
 
         self.matrix_u2rpm = np.array([ [1,   1,   1,   1],
-                                       [0,   1,   0,  -1],
-                                       [1,   0,  -1,   0],
-                                       [1,  -1,   1,  -1] 
+                                       [-1/np.sqrt(2),   -1/np.sqrt(2),   1/np.sqrt(2),  1/np.sqrt(2)],
+                                       [-1/np.sqrt(2),   1/np.sqrt(2),  1/np.sqrt(2),   -1/np.sqrt(2)],
+                                       [-1,  1,   -1,  1] 
                                       ])
 
         self.matrix_u2rpm_inv = np.linalg.inv(self.matrix_u2rpm)
 
-        self.p_coeff_position["x"] = 6*0.05  #0.0005
+        self.p_coeff_position["x"] = 5*0.05  #0.0005
         self.d_coeff_position["x"] = 50 * 0.08 #0.05
-        self.p_coeff_position["y"] = 6*0.05 #
+        self.p_coeff_position["y"] = 5*0.05 #
         self.d_coeff_position["y"] = 50 * 0.08 #0
-        self.p_coeff_position["z"] = 6*0.05  #0.0005
+        self.p_coeff_position["z"] = 5*0.05  #0.0005
         self.d_coeff_position["z"] = 50 * 0.08  #0.05
         self.p_coeff_position["r"] = 0.5*0.07 #.0005 #0.7 * 0.7*0.9 
         self.d_coeff_position["r"] = 2 * 0.5 #.05#2 * 2.5 * 0.7 * 1.5*0.1
@@ -79,7 +79,7 @@ class Quad3D():
                         target_position,
                         target_velocity=np.zeros(3),
                         target_acceleration=np.zeros(3),
-                        TIMESTEP= 0.001
+                        TIMESTEP= 0.01
                         ):
         """Computes the propellers' RPMs for the target state, given the current state.
 
@@ -105,6 +105,8 @@ class Quad3D():
         """
         self.control_counter += 1
         self.timestep = TIMESTEP
+
+        # print(current_rpy, self.last_rpy)
 
         # Compute roll, pitch, and yaw rates
         current_rpy_dot = (current_rpy - self.last_rpy) / self.timestep
@@ -136,27 +138,11 @@ class Quad3D():
         # Calculate desired roll and rates given by PD
         desired_roll = np.arctan((x_ddot*np.sin(current_rpy[2]) - y_ddot*np.cos(current_rpy[2])) / (self.g + z_ddot)) #-y_ddot/(self.g + z_ddot)#
         desired_roll_dot = (desired_roll - current_rpy[0]) / self.timestep
-        self.old_roll = desired_roll
-        self.old_roll_dot = desired_roll_dot
-        roll_ddot = self.pd_control(desired_roll, 
-                                    current_rpy[0],
-                                    desired_roll_dot, 
-                                    current_rpy_dot[0],
-                                    0,
-                                    "r"
-                                    )
+        roll_ddot = (desired_roll_dot - current_rpy_dot[0]) / self.timestep
 
         desired_pitch = np.arctan((x_ddot*np.cos(current_rpy[2]) + y_ddot*np.sin(current_rpy[2]) )/ (self.g + z_ddot)) #x_ddot/(self.g + z_ddot)#
         desired_pitch_dot = (desired_pitch - current_rpy[1]) / self.timestep
-        self.old_pitch = desired_pitch
-        self.old_pitch_dot = desired_pitch_dot
-        pitch_ddot = self.pd_control(desired_pitch, 
-                                    current_rpy[1],
-                                    desired_pitch_dot, 
-                                    current_rpy_dot[1],
-                                    0,
-                                    "p"
-                                    )
+        pitch_ddot = (desired_pitch_dot - current_rpy_dot[0]) / self.timestep
         print(x_ddot, y_ddot, z_ddot, roll_ddot)
 
         # Calculate thrust and moment given the PD input
@@ -196,7 +182,7 @@ class Quad3D():
         return x_ddot, y_ddot, z_ddot,np.array([propellers_0_rpm, propellers_1_rpm, propellers_2_rpm, propellers_3_rpm])
 
     def compute_xyz_ddot(self,
-                        rpms, t,
+                        rpms, dt, current_rpy, current_rpy_rates,
                         ):
         """Computes the propellers' RPMs for the target state, given the current state.
 
@@ -215,7 +201,7 @@ class Quad3D():
             z_ddot values corresponding to the rpms.
         """
 
-        propellers_rpm = (rpms)**2
+        propellers_rpm = np.square(rpms)
         u = np.dot(self.matrix_u2rpm, propellers_rpm)
 
         u1 = self.kf_coeff*u[0]
@@ -224,24 +210,31 @@ class Quad3D():
 
         r_ddot = u2/(self.inertia_xx)
         p_ddot = -u3/(self.inertia_xx)
+        # print(r_ddot, p_ddot)
 
-        self.time.append(t)
+        # self.time.append(t)
 
-        self.r_dd.append(r_ddot)
-        self.p_dd.append(p_ddot)
+        # self.r_dd.append(r_ddot)
+        # self.p_dd.append(p_ddot)
         
-        r_dot = integrate.trapz(self.r_dd,self.time)
-        p_dot = integrate.trapz(self.p_dd,self.time)
+        r_dot = r_ddot*dt + current_rpy_rates[0]
+        p_dot = p_ddot*dt + current_rpy_rates[1]
         
-        self.r_d.append(r_dot)
-        self.p_d.append(p_dot)
-        
-        r = integrate.trapz(self.r_d,self.time)
-        p = integrate.trapz(self.p_d,self.time)
+        # self.r_d.append(r_dot)
+        # self.p_d.append(p_dot)
 
-        z_ddot = -self.g + u1/(self.mass*np.sqrt((np.tan(r))**2 + (np.tan(p))**2))
-        x_ddot = (np.tan(r)*u1)/(self.mass*np.sqrt((np.tan(r))**2 + (np.tan(p))**2))
-        y_ddot = (np.tan(p)*u1)/(self.mass*np.sqrt((np.tan(r))**2 + (np.tan(p))**2))
+        # print(len(self.p_d), len(self.time))
+        
+        r = r_dot*dt + current_rpy[0]
+        p = p_dot*dt + current_rpy[1]
+
+        # print('int_rp:', r_dot, p_dot)
+
+        a = u1/(self.mass*np.sqrt((np.tan(r))**2 + (np.tan(p))**2 + 1))
+
+        z_ddot = -self.g + a
+        x_ddot = (np.tan(p)*a)
+        y_ddot = -(np.tan(r)*a)
 
         return x_ddot, y_ddot, z_ddot
 
