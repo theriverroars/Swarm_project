@@ -99,24 +99,24 @@ class QP_Controller_Drone(QP_Controller):
         
         # create state and parameter symbolic varaibles for each bot
         
-        symbols_string = 'x y z x_d y_d z_d phi theta psi w_1 w_2 w_3 L Ixx Iyy Izz m l r'
-        bot.sym_x, bot.sym_y, bot.sym_z, bot.sym_x_d, bot.sym_y_d, bot.sym_z_d, bot.sym_phi, bot.sym_theta, bot.sym_psi, bot.sym_w_1, bot.sym_w_2, bot.sym_w_3, bot.sym_L, bot.sym_Ixx, bot.sym_Iyy, bot.sym_Izz, bot.sym_m, bot.sym_l, bot.sym_r =  symbols(symbols_string)
-        self.f = Matrix([bot.sym_x_d, 
-                        bot.sym_y_d,
-                        bot.sym_z_d,
+        # symbols_string = 'x y z x_d y_d z_d phi theta psi w_1 w_2 w_3 L Ixx Iyy Izz m l r'
+        # bot.x, bot.y, bot.z, bot.x_d, bot.y_d, bot.z_d, bot.phi, bot.theta, bot.psi, bot.w_1, bot.w_2, bot.w_3, bot.L, bot.Ixx, bot.Iyy, bot.Izz, bot.m, bot.l, bot.r =  symbols(symbols_string)
+        self.f = Matrix([bot.x_d, 
+                        bot.y_d,
+                        bot.z_d,
                         0,
                         0, 
                         - self.G,
-                        bot.sym_w_1 + bot.sym_w_2*sin(bot.sym_phi)*tan(bot.sym_theta) + bot.sym_w_3*cos(bot.sym_phi)*tan(bot.sym_theta),
-                        bot.sym_w_2*cos(bot.sym_phi) - bot.sym_w_3*sin(bot.sym_phi),
-                        (bot.sym_w_2*sin(bot.sym_phi) + bot.sym_w_3*cos(bot.sym_phi))/cos(bot.sym_theta),
-                        (bot.sym_Iyy - bot.sym_Izz)*bot.sym_w_2*bot.sym_w_3/bot.sym_Ixx,
-                        (bot.sym_Izz - bot.sym_Ixx)*bot.sym_w_1*bot.sym_w_3/bot.sym_Iyy,
-                        (bot.sym_Ixx - bot.sym_Iyy)*bot.sym_w_1*bot.sym_w_2/bot.sym_Izz])
+                        bot.w_1 + bot.w_2*sin(bot.phi)*tan(bot.theta) + bot.w_3*cos(bot.phi)*tan(bot.theta),
+                        bot.w_2*cos(bot.phi) - bot.w_3*sin(bot.phi),
+                        (bot.w_2*sin(bot.phi) + bot.w_3*cos(bot.phi))/cos(bot.theta),
+                        (bot.Iyy - bot.Izz)*bot.w_2*bot.w_3/bot.Ixx,
+                        (bot.Izz - bot.Ixx)*bot.w_1*bot.w_3/bot.Iyy,
+                        (bot.Ixx - bot.Iyy)*bot.w_1*bot.w_2/bot.Izz])
 
-        p = (cos(bot.sym_psi)*sin(bot.sym_theta)*cos(bot.sym_phi) + sin(bot.sym_psi)*sin(bot.sym_phi))/bot.sym_m
-        q = (sin(bot.sym_psi)*sin(bot.sym_theta)*cos(bot.sym_phi) - cos(bot.sym_psi)*sin(bot.sym_phi))/bot.sym_m
-        r = (cos(bot.sym_theta)*cos(bot.sym_phi))/bot.sym_m
+        p = (cos(bot.psi)*sin(bot.theta)*cos(bot.phi) + sin(bot.psi)*sin(bot.phi))/bot.m
+        q = (sin(bot.psi)*sin(bot.theta)*cos(bot.phi) - cos(bot.psi)*sin(bot.phi))/bot.m
+        r = (cos(bot.theta)*cos(bot.phi))/bot.m
         self.g = Matrix([[0, 0, 0, 0],
                         [0, 0, 0, 0],
                         [0, 0, 0, 0],
@@ -126,49 +126,49 @@ class QP_Controller_Drone(QP_Controller):
                         [0, 0, 0, 0],
                         [0, 0, 0, 0],
                         [0, 0, 0, 0],
-                        [0, bot.sym_L/bot.sym_Iyy, 0, -bot.sym_L/bot.sym_Iyy],
-                        [bot.sym_L/bot.sym_Ixx, 0, -bot.sym_L/bot.sym_Ixx, 0],
+                        [0, bot.L/bot.Iyy, 0, -bot.L/bot.Iyy],
+                        [bot.L/bot.Ixx, 0, -bot.L/bot.Ixx, 0],
                         [0, 0, 0, 0]])
             
         # for CBF h
         # Bot objects 
-        r_x = (cos(bot.sym_psi)*sin(bot.sym_theta)*cos(bot.sym_phi) + sin(bot.sym_psi)*sin(bot.sym_phi))
-        r_y = (sin(bot.sym_psi)*sin(bot.sym_theta)*cos(bot.sym_phi) - cos(bot.sym_psi)*sin(bot.sym_phi))
-        r_z = (cos(bot.sym_theta)*cos(bot.sym_phi))
+        r_x = (cos(bot.psi)*sin(bot.theta)*cos(bot.phi) + sin(bot.psi)*sin(bot.phi))
+        r_y = (sin(bot.psi)*sin(bot.theta)*cos(bot.phi) - cos(bot.psi)*sin(bot.phi))
+        r_z = (cos(bot.theta)*cos(bot.phi))
 
         # Relative position terms
-        p_rel_x = c_x - (bot.sym_x + bot.sym_l*r_x)
-        p_rel_y = c_y - (bot.sym_y + bot.sym_l*r_y)
-        p_rel_z = c_z - (bot.sym_z + bot.sym_l*r_z)
+        p_rel_x = c_x - (bot.x + bot.l*r_x)
+        p_rel_y = c_y - (bot.y + bot.l*r_y)
+        p_rel_z = c_z - (bot.z + bot.l*r_z)
         
         # Relative velocity terms
-        v_rel_x = c_x_d - (bot.sym_x_d + bot.sym_l*(-bot.sym_w_3*r_y + bot.sym_w_2*r_z))
-        v_rel_y = c_y_d - (bot.sym_y_d + bot.sym_l*(-bot.sym_w_1*r_z + bot.sym_w_3*r_x))
-        v_rel_z = c_z_d - (bot.sym_z_d + bot.sym_l*(-bot.sym_w_2*r_x + bot.sym_w_1*r_y))
+        v_rel_x = c_x_d - (bot.x_d + bot.l*(-bot.w_3*r_y + bot.w_2*r_z))
+        v_rel_y = c_y_d - (bot.y_d + bot.l*(-bot.w_1*r_z + bot.w_3*r_x))
+        v_rel_z = c_z_d - (bot.z_d + bot.l*(-bot.w_2*r_x + bot.w_1*r_y))
         
         # # C3BF Candidate
         # self.h = p_rel_x*v_rel_x + p_rel_y*v_rel_y + p_rel_z*v_rel_z \
-        #     + norm(v_rel_x, v_rel_y, v_rel_z)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.sym_r**2)
+        #     + norm(v_rel_x, v_rel_y, v_rel_z)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)
 
         # Classical CBF
-        self.h = norm(c_x - bot.sym_x, c_y - bot.sym_y, c_z - bot.sym_z)**2 -1
+        # self.h = norm(c_x - bot.x, c_y - bot.y, c_z - bot.z)**2 -1
 
         # C3BF Candidate
         self.h = p_rel_x*v_rel_x + p_rel_y*v_rel_y + p_rel_z*v_rel_z \
-            + norm(v_rel_x, v_rel_y, v_rel_z)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.sym_r**2)
+            + norm(v_rel_x, v_rel_y, v_rel_z)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)
             
-        rho_h_by_rho_x = diff(self.h, bot.sym_x)
-        rho_h_by_rho_y = diff(self.h, bot.sym_y)
-        rho_h_by_rho_z = diff(self.h, bot.sym_z)
-        rho_h_by_rho_x_d = diff(self.h, bot.sym_x_d)
-        rho_h_by_rho_y_d = diff(self.h, bot.sym_y_d)
-        rho_h_by_rho_z_d = diff(self.h, bot.sym_z_d)
-        rho_h_by_rho_phi = diff(self.h, bot.sym_phi)
-        rho_h_by_rho_theta = diff(self.h, bot.sym_theta)
-        rho_h_by_rho_psi = diff(self.h, bot.sym_psi)
-        rho_h_by_rho_w_1 = diff(self.h, bot.sym_w_1)
-        rho_h_by_rho_w_2 = diff(self.h, bot.sym_w_2)
-        rho_h_by_rho_w_3 = diff(self.h, bot.sym_w_3)
+        rho_h_by_rho_x = -v_rel_x + (-p_rel_x)*norm(v_rel_x, v_rel_y, v_rel_z)/sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)
+        rho_h_by_rho_y = -v_rel_y + (-p_rel_y)*norm(v_rel_x, v_rel_y, v_rel_z)/sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)
+        rho_h_by_rho_z = -v_rel_z + (-p_rel_z)*norm(v_rel_x, v_rel_y, v_rel_z)/sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)
+        rho_h_by_rho_x_d = -p_rel_x + (-v_rel_x)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, v_rel_z)
+        rho_h_by_rho_y_d = -p_rel_y + (-v_rel_y)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, v_rel_z)
+        rho_h_by_rho_z_d = -p_rel_z + (-v_rel_z)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, v_rel_z)
+        rho_h_by_rho_phi   = diff(self.h, bot.phi)
+        rho_h_by_rho_theta = diff(self.h, bot.theta)
+        rho_h_by_rho_psi   = diff(self.h, bot.psi)
+        rho_h_by_rho_w_1 = bot.l*(r_z*p_rel_y - r_y*p_rel_z) + bot.l*(r_z*v_rel_y - r_y*v_rel_z)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, v_rel_z)
+        rho_h_by_rho_w_2 = bot.l*(r_x*p_rel_z - r_z*p_rel_x) + bot.l*(r_x*v_rel_z - r_z*v_rel_x)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, v_rel_z)
+        rho_h_by_rho_w_3 = bot.l*(r_y*p_rel_x - r_x*p_rel_y) + bot.l*(r_y*v_rel_x - r_x*v_rel_y)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, v_rel_z)
         
         Delta_h_wrt_bot = Matrix([[rho_h_by_rho_x, 
                                     rho_h_by_rho_y, 
@@ -213,27 +213,27 @@ class QP_Controller_Drone(QP_Controller):
             unsafe system is.
         """
         # build value substitution list
-        uk_vs = [bot.sym_x, bot.sym_y, bot.sym_z,
-                bot.sym_x_d, bot.sym_y_d, bot.sym_z_d,
-                bot.sym_phi, bot.sym_theta,bot.sym_psi,
-                bot.sym_w_1, bot.sym_w_2, bot.sym_w_3,
-                bot.sym_L, bot.sym_Ixx, bot.sym_Iyy, bot.sym_Izz, 
-                bot.sym_m, bot.sym_l, bot.sym_r]
+        # uk_vs = [bot.x, bot.y, bot.z,
+        #         bot.x_d, bot.y_d, bot.z_d,
+        #         bot.phi, bot.theta,bot.psi,
+        #         bot.w_1, bot.w_2, bot.w_3,
+        #         bot.L, bot.Ixx, bot.Iyy, bot.Izz, 
+        #         bot.m, bot.l, bot.r]
 
-        uk_gs = [ bot.x,  bot.y,  bot.z,
-                 bot.x_dot,  bot.y_dot,  bot.z_dot,
-                 bot.phi,  bot.theta, bot.psi,
-                 bot.w_1,  bot.w_2,  bot.w_3,
-                 bot.L,  bot.Ixx,  bot.Iyy,  bot.Izz, 
-                 bot.m,  bot.l,  bot.encompassing_radius ]
+        # uk_gs = [ bot.x,  bot.y,  bot.z,
+        #          bot.x_dot,  bot.y_dot,  bot.z_dot,
+        #          bot.phi,  bot.theta, bot.psi,
+        #          bot.w_1,  bot.w_2,  bot.w_3,
+        #          bot.L,  bot.Ixx,  bot.Iyy,  bot.Izz, 
+        #          bot.m,  bot.l,  bot.encompassing_radius ]
 
-        d = {uk: uk_gs[i] for i, uk in enumerate(uk_vs)}
+        # d = {uk: uk_gs[i] for i, uk in enumerate(uk_vs)}
 
-        # build value substitution list        
-        self.h = np.array(re(self.h.xreplace(d)))
-        self.Psi = np.array(re(self.Psi.xreplace(d)))
-        self.B = np.array(re(self.B.xreplace(d)))
-        self.C = np.array(re(self.C.xreplace(d)))
+        # # build value substitution list        
+        # self.h = np.array(re(self.h.xreplace(d)))
+        # self.Psi = np.array(re(self.Psi.xreplace(d)))
+        # self.B = np.array(re(self.B.xreplace(d)))
+        # self.C = np.array(re(self.C.xreplace(d)))
 
         # print(self.Psi)
 
