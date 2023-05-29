@@ -33,7 +33,7 @@ class QP_Controller_Drone(QP_Controller):
 
         """
         self.gamma = gamma
-        self.u_ref = None
+        self.u_ref = np.array([0,0,0,0])
         self.u_star = None
         self.G = 9.81
         self.kf = 3.16e-10
