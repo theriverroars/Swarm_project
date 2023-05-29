@@ -272,6 +272,9 @@ def run_sequence(scf):
     acc_z_data = []
 
     CTRL = Quad3D()
+    gamma = 1
+    qp = QP_Controller_Drone(gamma)
+    qp.setup_QP(bot, [1.5, 0, 0.40],[0,0,0])
     
     while np.absolute(OUTPUTS['stateZ_x'][-1])/1000 < 3.5 and np.absolute(OUTPUTS['stateZ_y'][-1])/1000 < 3.5 and (OUTPUTS['stateZ_z'][-1])/1000 < 1.0:
         t_now = time.time()
@@ -342,13 +345,12 @@ def run_sequence(scf):
             print('rpm',rpm.dtype)
 
             
-            # gamma = 1
-            # qp = QP_Controller_Drone(gamma)
+            
             # u_ref =   rpm
             # f_u_ref = 3.16e-10 * np.square(u_ref)
             # qp.set_reference_control(f_u_ref)
             # # print(obs_1[0:3], obs_1[10:13])
-            # qp.setup_QP(bot, [1.5, 0, 0.40],[0,0,0])
+            # 
                 
 
             # # Simulation
