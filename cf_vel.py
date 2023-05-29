@@ -274,9 +274,8 @@ def run_sequence(scf):
     CTRL = Quad3D()
     gamma = 1
     qp = QP_Controller_Drone(gamma)
-    qp.setup_QP(bot, [1.5, 0, 0.40],[0,0,0])
-    
-    while np.absolute(OUTPUTS['stateZ_x'][-1])/1000 < 3.5 and np.absolute(OUTPUTS['stateZ_y'][-1])/1000 < 3.5 and (OUTPUTS['stateZ_z'][-1])/1000 < 1.0:
+        
+    while np.absolute(OUTPUTS['stateZ_x'][-1])/1000 < 3.5 and np.absolute(OUTPUTS['stateZ_y'][-1])/1000 < 3.5 and (OUTPUTS['stateZ_z'][-1])/1000 < 1.2:
         t_now = time.time()
         t = t_now-t_in
         ## target values
@@ -344,22 +343,22 @@ def run_sequence(scf):
 
             print('rpm',rpm.dtype)
 
-            
-            
-            # u_ref =   rpm
-            # f_u_ref = 3.16e-10 * np.square(u_ref)
-            # qp.set_reference_control(f_u_ref)
-            # # print(obs_1[0:3], obs_1[10:13])
-            # 
+            if t-t_lift>1:
+                u_ref = rpm
+                f_u_ref = 3.16e-10 * np.square(u_ref)
+                qp.set_reference_control(f_u_ref)
+                qp.setup_QP(bot, [2.1, 0, 0.39],[0,0,0])
                 
+                # Simulation
+                # Solve QP
+                value_of_h = qp.solve_QP(bot)
+                print("h", value_of_h)
+                
+                # Bot Kinematics
+                u_star = qp.get_optimal_control()
+                rpm = u_star
 
-            # # Simulation
-            # # Solve QP
-            # state_of_QP, value_of_h = qp.solve_QP(bot)
-            
-            # # Bot Kinematics
-            # u_star = qp.get_optimal_control()
-            # rpm = u_star
+            bot.update_state(params['pos'], params['vel'], params['rpy'], params['dt'])
 
             # print(rpm.dtype)
 

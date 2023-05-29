@@ -5,8 +5,8 @@ import math
 
 ## path for load
 
-path_des = '/home/rajpal/github_dat/Drones-C3BF-hardware/results/save-flight--01.03.2023_13.24.04/'
-path_traced = '/home/rajpal/github_dat/Drones-C3BF-hardware/data_log/dynamics_dataset Sun Apr  2 10-15-47 2023.csv'
+path_des = '/home/rajpal/github_dat/Drones-C3BF/results/save-flight--01.03.2023_13.24.04/'
+path_traced = '/home/rajpal/github_dat/Drones-C3BF/data_log/tuning/dynamics_dataset Mon May 29 23-19-06 2023.csv'
 
 df_traced = pd.read_csv(path_traced)
 
@@ -100,7 +100,15 @@ plt.show()
 
 plt.figure()
 plt.plot(t,np.degrees(roll),label = 'desired')
+plt.plot((df_traced['stateZ_timestamp']-df_traced['stateZ_timestamp'][0])/1000,df_traced['stateZ_z']/1000,label = 'traced')
+plt.ylabel('z(mm)')
+plt.legend()
+plt.show()
+
+plt.figure()
+plt.plot(t,np.degrees(roll),label = 'desired')
 plt.plot((df_traced['stateZ_timestamp']-df_traced['stateZ_timestamp'][0])/1000,roll_des,label = 'traced')
+plt.ylabel('roll')
 plt.legend()
 plt.show()
 

@@ -120,8 +120,8 @@ def path_pars(t,t_end,c,tilt,rd_init, shape):
     elif shape == 'helix':
         # circle
         tilt = 0
-        max_hieght = 0.2
-        n_rounds = 6
+        max_hieght = 0.6
+        n_rounds = 2
         n = (t_end)/(10*n_rounds)
         rd = np.array([c*np.sin(0.2*np.pi*t/n)+rd_init[0],
                        c*np.cos(0.2*np.pi*t/n)+rd_init[1]-c,

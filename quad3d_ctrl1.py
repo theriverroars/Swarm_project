@@ -47,7 +47,7 @@ class Quad3D():
         self.p_coeff_position["y"] = 5*0.05 #
         self.d_coeff_position["y"] = 50 * 0.08 #0
         self.p_coeff_position["z"] = 5*0.05  #0.0005
-        self.d_coeff_position["z"] = 50 * 0.08  #0.05
+        self.d_coeff_position["z"] = 5 * 0.08 #0.05
         self.p_coeff_position["r"] = 0.5*0.07 #.0005 #0.7 * 0.7*0.9 
         self.d_coeff_position["r"] = 2 * 0.5 #.05#2 * 2.5 * 0.7 * 1.5*0.1
         self.p_coeff_position["p"] = 0.5*0.07  #0.7 * 0.7*0.95
