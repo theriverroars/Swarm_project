@@ -15,7 +15,7 @@ class Quad3D():
         """
         self.g = 9.8
         """float: Gravity acceleration, in meters per second squared."""
-        self.mass = 0.0316#0.0316
+        self.mass = 0.0363#0.0316
         """float: The mass of quad from environment."""
         self.inertia_xx =1.395e-5#env.J[0][0]
         """float: The inertia of quad around x axis."""
@@ -142,7 +142,7 @@ class Quad3D():
 
         desired_pitch = np.arctan((x_ddot*np.cos(current_rpy[2]) + y_ddot*np.sin(current_rpy[2]) )/ (self.g + z_ddot)) #x_ddot/(self.g + z_ddot)#
         desired_pitch_dot = (desired_pitch - current_rpy[1]) / self.timestep
-        pitch_ddot = (desired_pitch_dot - current_rpy_dot[0]) / self.timestep
+        pitch_ddot = (desired_pitch_dot - current_rpy_dot[1]) / self.timestep
         print(x_ddot, y_ddot, z_ddot, roll_ddot)
 
         # Calculate thrust and moment given the PD input

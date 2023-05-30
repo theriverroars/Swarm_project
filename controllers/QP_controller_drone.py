@@ -58,13 +58,21 @@ class QP_Controller_Drone(QP_Controller):
     def get_optimal_control(self):
         self.u_star = self.u_star / self.kf
         # print(self.u_star[1][0])
+        if self.u_star[1][0]<0:
+             self.u_star[1][0] =0
+        elif self.u_star[1][0]<0:
+             self.u_star[1][0] =0
+        elif self.u_star[1][0]<0:
+             self.u_star[1][0] =0
+        elif self.u_star[1][0]<0:
+             self.u_star[1][0] =0
         propellers_1_rpm = sqrt(self.u_star[1][0])
         propellers_3_rpm = sqrt(self.u_star[3][0])
         propellers_0_rpm = sqrt(self.u_star[0][0])
         propellers_2_rpm = sqrt(self.u_star[2][0])
 
         return np.array([propellers_0_rpm, propellers_1_rpm,
-                         propellers_2_rpm, propellers_3_rpm])
+                         propellers_2_rpm, propellers_3_rpm], dtype='float64')
     
     def get_reference_control(self):
         return self.u_ref
@@ -221,7 +229,7 @@ class QP_Controller_Drone(QP_Controller):
                  bot.phi,  bot.theta, bot.psi,
                  bot.w_1,  bot.w_2,  bot.w_3,
                  bot.L,  bot.Ixx,  bot.Iyy,  bot.Izz, 
-                 bot.m,  bot.l,  bot.encompassing_radius + 0.3 ]
+                 bot.m,  bot.l,  bot.encompassing_radius + 0.5 ]
 
         d = {uk: uk_gs[i] for i, uk in enumerate(uk_vs)}
 
@@ -235,8 +243,8 @@ class QP_Controller_Drone(QP_Controller):
 
         if self.Psi<0:
             self.u_safe = - np.matmul(self.B, np.linalg.inv(np.matmul(self.C,self.B).astype('float64'))).dot(self.Psi)
-            # print(self.u_safe)
         else:
             self.u_safe = 0
+
         self.u_star = self.u_ref + self.u_safe
         return self.h

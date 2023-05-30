@@ -335,15 +335,17 @@ def run_sequence(scf):
                                             TIMESTEP=params['dt']
                                             )
             
-            print('current_rpy:',params['rpy_rates'][0], params['rpy_rates'][1])
+            # print('current_rpy:',params['rpy_rates'][0], params['rpy_rates'][1])
 
 
             t_int += params['dt']
             time_int.append(t_int)
 
-            print('rpm',rpm)
+            # print('rpm',rpm)
+            print(rpm.dtype)
 
             if t-t_lift>1:
+                
                 u_ref = rpm
                 f_u_ref = 3.16e-10 * np.square(u_ref)
                 qp.set_reference_control(f_u_ref)
@@ -356,21 +358,28 @@ def run_sequence(scf):
                 
                 # Bot Kinematics
                 u_star = qp.get_optimal_control()
-                print(u_star-rpm)
                 rpm = u_star
 
-            bot.update_state(params['pos'], params['vel'], params['rpy'], params['dt'])
+                print(rpm.dtype)
 
-            # print(rpm.dtype)
+                x_ddot, y_ddot, z_ddot = CTRL.compute_xyz_ddot(rpm, params['dt'], params['rpy'], params['rpy_rates'])
 
-            # x_ddot, y_ddot, z_ddot = CTRL.compute_xyz_ddot(rpm, params['dt'], params['rpy'], params['rpy_rates'])
-
+            
             KF = 3.16e-10
             thrusts = KF*(rpm**2)
 
-            ## rpy from the dynamics
+            bot.update_state(params['pos'], params['vel'], params['rpy'], params['dt'])
 
-            # acc, xyz_dot = drone_dynamics(params, thrusts)
+
+
+            # ## rpy from the dynamics
+
+            # xyz_dot, acc = drone_dynamics(params, thrusts)
+
+            # x_ddot = acc[0]
+            # y_ddot = acc[1]
+            # z_ddot = acc[2]
+
 
             acc_x_data.append(x_ddot)
             acc_y_data.append(y_ddot)
@@ -383,8 +392,8 @@ def run_sequence(scf):
             net_thrust = np.sum(thrusts)
             net_thrust_pwm = np.clip(convert_thrust_2_pwm(net_thrust/4), 0, 65535)
             ################################################################
-            print('rpyt setpoints:', thrusts, net_thrust ,net_thrust_pwm)
-            print('acc:', x_ddot, y_ddot, z_ddot)
+            # print('rpyt setpoints:', thrusts, net_thrust ,net_thrust_pwm)
+            # print('acc:', x_ddot, y_ddot, z_ddot)
             # print('acc1:', x_ddot1, y_ddot1, z_ddot1)
             # cfcommander.send_zdistance_setpoint(r, p, y, 0.4)
 

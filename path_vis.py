@@ -5,7 +5,7 @@ import math
 
 ## path for load
 
-path_des = '/home/rajpal/github_dat/Drones-C3BF/results/save-flight--01.03.2023_13.24.04/'
+path_des = '/home/rajpal/github_dat/Drones-C3BF/data_log/tuning/dynamics_dataset Tue May 30 23-09-45 2023.csv'
 path_traced = '/home/rajpal/github_dat/Drones-C3BF/data_log/tuning/dynamics_dataset Mon May 29 23-19-06 2023.csv'
 
 df_traced = pd.read_csv(path_traced)
