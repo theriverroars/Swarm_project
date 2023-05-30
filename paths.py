@@ -184,6 +184,21 @@ def path_pars(t,t_end,c,tilt,rd_init, shape):
         rd_ddot = np.array([0,
                             0,
                             0])
+        
+    elif shape == 'parabola':
+        
+
+        rd = np.array([10*c*t/t_end +  rd_init[0],
+                      rd_init[1],
+                      -(c/t_end)*(t*(t- t_end)) + rd_init[2]])
+
+        rd_dot = np.array([10*c/t_end,
+                           0,               
+                           -(c/t_end)*(2*(t-t_end/2) )])
+    
+        rd_ddot = np.array([0,
+                            0,
+                            -(c/t_end)*2])
 
 
     else:

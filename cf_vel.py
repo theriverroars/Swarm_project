@@ -275,7 +275,7 @@ def run_sequence(scf):
     gamma = 1
     qp = QP_Controller_Drone(gamma)
         
-    while np.absolute(OUTPUTS['stateZ_x'][-1])/1000 < 3.5 and np.absolute(OUTPUTS['stateZ_y'][-1])/1000 < 3.5 and (OUTPUTS['stateZ_z'][-1])/1000 < 1.2:
+    while np.absolute(OUTPUTS['stateZ_x'][-1])/1000 < 3.5 and np.absolute(OUTPUTS['stateZ_y'][-1])/1000 < 3.5 and (OUTPUTS['stateZ_z'][-1])/1000 < 2:
         t_now = time.time()
         t = t_now-t_in
         ## target values
@@ -341,13 +341,13 @@ def run_sequence(scf):
             t_int += params['dt']
             time_int.append(t_int)
 
-            print('rpm',rpm.dtype)
+            print('rpm',rpm)
 
             if t-t_lift>1:
                 u_ref = rpm
                 f_u_ref = 3.16e-10 * np.square(u_ref)
                 qp.set_reference_control(f_u_ref)
-                qp.setup_QP(bot, [2.1, 0, 0.39],[0,0,0])
+                qp.setup_QP(bot, [2.0, 0, 0.39],[0,0,0])
                 
                 # Simulation
                 # Solve QP
@@ -356,6 +356,7 @@ def run_sequence(scf):
                 
                 # Bot Kinematics
                 u_star = qp.get_optimal_control()
+                print(u_star-rpm)
                 rpm = u_star
 
             bot.update_state(params['pos'], params['vel'], params['rpy'], params['dt'])
