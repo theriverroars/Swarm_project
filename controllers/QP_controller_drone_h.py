@@ -69,7 +69,7 @@ class QP_Controller_Drone(QP_Controller):
     def get_reference_control(self):
         return self.u_ref
     
-    def setup_QP(self, bot, c, c_d):
+    def setup_QP(self, bot):
         """
         the function takes bot list and creates symbolic varaibles associated 
         with each bot required for computation in QP. The functions also 
@@ -85,8 +85,7 @@ class QP_Controller_Drone(QP_Controller):
         None.
 
         """
-        c_x, c_y, c_z = c
-        c_x_d, c_y_d, c_z_d = c_d
+        
         # Create placholders for symbolic expressions
         self.f = [0] # f Matrix in control system
         self.g = [0] # g Matrix in control system
@@ -99,8 +98,8 @@ class QP_Controller_Drone(QP_Controller):
         
         # create state and parameter symbolic varaibles for each bot
         
-        symbols_string = 'x y z x_d y_d z_d phi theta psi w_1 w_2 w_3 L Ixx Iyy Izz m l r'
-        bot.sym_x, bot.sym_y, bot.sym_z, bot.sym_x_d, bot.sym_y_d, bot.sym_z_d, bot.sym_phi, bot.sym_theta, bot.sym_psi, bot.sym_w_1, bot.sym_w_2, bot.sym_w_3, bot.sym_L, bot.sym_Ixx, bot.sym_Iyy, bot.sym_Izz, bot.sym_m, bot.sym_l, bot.sym_r =  symbols(symbols_string)
+        symbols_string = 'c_x c_y c_z c_x_d c_y_d c_z_d x y z x_d y_d z_d phi theta psi w_1 w_2 w_3 L Ixx Iyy Izz m l r'
+        bot.sym_c_x, bot.sym_c_y, bot.sym_c_z, bot.sym_c_x_d, bot.sym_c_y_d, bot.sym_c_z_d, bot.sym_x, bot.sym_y, bot.sym_z, bot.sym_x_d, bot.sym_y_d, bot.sym_z_d, bot.sym_phi, bot.sym_theta, bot.sym_psi, bot.sym_w_1, bot.sym_w_2, bot.sym_w_3, bot.sym_L, bot.sym_Ixx, bot.sym_Iyy, bot.sym_Izz, bot.sym_m, bot.sym_l, bot.sym_r =  symbols(symbols_string)
         self.f = Matrix([bot.sym_x_d, 
                         bot.sym_y_d,
                         bot.sym_z_d,
@@ -137,14 +136,14 @@ class QP_Controller_Drone(QP_Controller):
         r_z = (cos(bot.sym_theta)*cos(bot.sym_phi))
 
         # Relative position terms
-        p_rel_x = c_x - (bot.sym_x + bot.sym_l*r_x)
-        p_rel_y = c_y - (bot.sym_y + bot.sym_l*r_y)
-        p_rel_z = c_z - (bot.sym_z + bot.sym_l*r_z)
+        p_rel_x = bot.sym_c_x - (bot.sym_x + bot.sym_l*r_x)
+        p_rel_y = bot.sym_c_y - (bot.sym_y + bot.sym_l*r_y)
+        p_rel_z = bot.sym_c_z - (bot.sym_z + bot.sym_l*r_z)
         
         # Relative velocity terms
-        v_rel_x = c_x_d - (bot.sym_x_d + bot.sym_l*(-bot.sym_w_3*r_y + bot.sym_w_2*r_z))
-        v_rel_y = c_y_d - (bot.sym_y_d + bot.sym_l*(-bot.sym_w_1*r_z + bot.sym_w_3*r_x))
-        v_rel_z = c_z_d - (bot.sym_z_d + bot.sym_l*(-bot.sym_w_2*r_x + bot.sym_w_1*r_y))
+        v_rel_x = bot.sym_c_x_d - (bot.sym_x_d + bot.sym_l*(-bot.sym_w_3*r_y + bot.sym_w_2*r_z))
+        v_rel_y = bot.sym_c_y_d - (bot.sym_y_d + bot.sym_l*(-bot.sym_w_1*r_z + bot.sym_w_3*r_x))
+        v_rel_z = bot.sym_c_z_d - (bot.sym_z_d + bot.sym_l*(-bot.sym_w_2*r_x + bot.sym_w_1*r_y))
         
         # C3BF Candidate
         self.h = p_rel_x*v_rel_x + p_rel_y*v_rel_y + p_rel_z*v_rel_z \
@@ -187,7 +186,7 @@ class QP_Controller_Drone(QP_Controller):
         self.Psi = self.gamma*self.h
         self.Psi += n_f[0] + n[0]
                  
-    def solve_QP(self, bot):
+    def solve_QP(self, bot, c, c_d):
         """
         Solving Quadratic Program to set the optimal controls. This functions
         substitutes the values in symbolic expression and evalutes closed form
@@ -209,14 +208,21 @@ class QP_Controller_Drone(QP_Controller):
             unsafe system is.
         """
         # build value substitution list
-        uk_vs = [bot.sym_x, bot.sym_y, bot.sym_z,
+        c_x, c_y, c_z = c
+        c_x_d, c_y_d, c_z_d = c_d
+
+        uk_vs = [bot.sym_c_x, bot.sym_c_y, bot.sym_c_z,
+                 bot.sym_c_x_d, bot.sym_c_y_d, bot.sym_c_z_d,
+                bot.sym_x, bot.sym_y, bot.sym_z,
                 bot.sym_x_d, bot.sym_y_d, bot.sym_z_d,
                 bot.sym_phi, bot.sym_theta,bot.sym_psi,
                 bot.sym_w_1, bot.sym_w_2, bot.sym_w_3,
                 bot.sym_L, bot.sym_Ixx, bot.sym_Iyy, bot.sym_Izz, 
                 bot.sym_m, bot.sym_l, bot.sym_r]
 
-        uk_gs = [ bot.x,  bot.y,  bot.z,
+        uk_gs = [c_x, c_y, c_z,
+                 c_x_d, c_y_d, c_z_d,
+                 bot.x,  bot.y,  bot.z,
                  bot.x_dot,  bot.y_dot,  bot.z_dot,
                  bot.phi,  bot.theta, bot.psi,
                  bot.w_1,  bot.w_2,  bot.w_3,
