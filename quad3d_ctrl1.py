@@ -143,7 +143,7 @@ class Quad3D():
         desired_pitch = np.arctan((x_ddot*np.cos(current_rpy[2]) + y_ddot*np.sin(current_rpy[2]) )/ (self.g + z_ddot)) #x_ddot/(self.g + z_ddot)#
         desired_pitch_dot = (desired_pitch - current_rpy[1]) / self.timestep
         pitch_ddot = (desired_pitch_dot - current_rpy_dot[1]) / self.timestep
-        print(x_ddot, y_ddot, z_ddot, roll_ddot)
+        # print(x_ddot, y_ddot, z_ddot, roll_ddot)
 
         # Calculate thrust and moment given the PD input
         u_1 = self.mass * np.sqrt(x_ddot**2+y_ddot**2+(self.g + z_ddot)**2)

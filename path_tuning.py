@@ -6,7 +6,7 @@ from paths import path_pars
 
 ## path for load
 
-path = '/home/rajpal/github_dat/Drones-C3BF/data_log/tuning/dynamics_dataset Wed May 31 00-32-36 2023.csv'
+path = '/home/rajpal/github_dat/Drones-C3BF/data_log/tuning/dynamics_dataset Wed May 31 22-29-22 2023.csv'
 
 df = pd.read_csv(path)
 
@@ -60,6 +60,24 @@ plt.title('vz vs time')
 plt.plot((df['stateZ_timestamp']-df['stateZ_timestamp'][0])/1000,df['stateZ_vz']/1000, label = 'traced')
 plt.plot(df['des_timestamp']-df['des_timestamp'][0],df['des_vz'], label = 'desired')
 plt.legend()
+plt.show()
+
+plt.figure()
+plt.title('ax vs time')
+plt.plot(df['des_timestamp']-df['des_timestamp'][0],df['cmd_ax'])
+
+plt.show()
+
+plt.figure()
+plt.title('ay vs time')
+plt.plot(df['des_timestamp']-df['des_timestamp'][0],df['cmd_ay'])
+
+plt.show()
+
+plt.figure()
+plt.title('az vs time')
+plt.plot(df['des_timestamp']-df['des_timestamp'][0],df['cmd_az'])
+
 plt.show()
 
 

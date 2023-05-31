@@ -229,7 +229,7 @@ class QP_Controller_Drone(QP_Controller):
                  bot.phi,  bot.theta, bot.psi,
                  bot.w_1,  bot.w_2,  bot.w_3,
                  bot.L,  bot.Ixx,  bot.Iyy,  bot.Izz, 
-                 bot.m,  bot.l,  bot.encompassing_radius + 0.5 ]
+                 bot.m,  bot.l,  bot.encompassing_radius + 1.5 ]
 
         d = {uk: uk_gs[i] for i, uk in enumerate(uk_vs)}
 
@@ -241,10 +241,13 @@ class QP_Controller_Drone(QP_Controller):
 
         # print(self.Psi)
 
+
         if self.Psi<0:
             self.u_safe = - np.matmul(self.B, np.linalg.inv(np.matmul(self.C,self.B).astype('float64'))).dot(self.Psi)
         else:
             self.u_safe = 0
+
+        print('u_ref', self.u_ref,'u_safe', self.u_safe)
 
         self.u_star = self.u_ref + self.u_safe
         return self.h

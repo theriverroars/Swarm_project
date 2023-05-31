@@ -73,7 +73,7 @@ CF_BODY = 'cf'
 # ]
 
 # path parameters
-t_run = 10
+t_run = 25
 hieght = 0.4
 t_lift = 5
 t_land = 2
@@ -275,7 +275,7 @@ def run_sequence(scf):
     gamma = 1
     qp = QP_Controller_Drone(gamma)
         
-    while np.absolute(OUTPUTS['stateZ_x'][-1])/1000 < 3.5 and np.absolute(OUTPUTS['stateZ_y'][-1])/1000 < 3.5 and (OUTPUTS['stateZ_z'][-1])/1000 < 2:
+    while np.absolute(OUTPUTS['stateZ_x'][-1])/1000 < 4.5 and np.absolute(OUTPUTS['stateZ_y'][-1])/1000 < 4.5 and (OUTPUTS['stateZ_z'][-1])/1000 < 2:
         t_now = time.time()
         t = t_now-t_in
         ## target values
@@ -298,14 +298,14 @@ def run_sequence(scf):
             INPUTS['des_vy'].append(OUTPUTS['stateZ_vy'][-1]/1000)
             INPUTS['des_vz'].append(OUTPUTS['stateZ_vz'][-1]/1000)
 
-            vel_x = OUTPUTS['stateZ_vx'][-1]/1000
-            vel_y = OUTPUTS['stateZ_vy'][-1]/1000
-            vel_z = OUTPUTS['stateZ_vz'][-1]/1000
+            INPUTS['cmd_ax'].append(0)
+            INPUTS['cmd_ay'].append(0)
+            INPUTS['cmd_az'].append(0)
         
 
         elif t < n_iters*t_run + t_lift:
             
-            rd,rd_dot,rd_ddot = path_pars(t-t_lift,t_run,c = 0.3, tilt=0,rd_init = r_init,shape = 'line')
+            rd,rd_dot,rd_ddot = path_pars(t-t_lift,t_run,c = 0.35, tilt=0,rd_init = r_init,shape = 'line')
                 ################################################################
             # put the controller here
             # controller
@@ -342,7 +342,6 @@ def run_sequence(scf):
             time_int.append(t_int)
 
             # print('rpm',rpm)
-            print(rpm.dtype)
 
             if t-t_lift>1:
                 
@@ -359,8 +358,6 @@ def run_sequence(scf):
                 # Bot Kinematics
                 u_star = qp.get_optimal_control()
                 rpm = u_star
-
-                print(rpm.dtype)
 
                 x_ddot, y_ddot, z_ddot = CTRL.compute_xyz_ddot(rpm, params['dt'], params['rpy'], params['rpy_rates'])
 
@@ -405,6 +402,10 @@ def run_sequence(scf):
             INPUTS['des_vx'].append(rd_dot[0])
             INPUTS['des_vy'].append(rd_dot[1])
             INPUTS['des_vz'].append(rd_dot[2])
+
+            INPUTS['cmd_ax'].append(x_ddot)
+            INPUTS['cmd_ay'].append(y_ddot)
+            INPUTS['cmd_az'].append(z_ddot)
  
             for i in range(10):
                 cf.commander.send_velocity_world_setpoint(x_di,
@@ -443,6 +444,11 @@ def run_sequence(scf):
             INPUTS['des_vx'].append(0)
             INPUTS['des_vy'].append(0)
             INPUTS['des_vz'].append(OUTPUTS['stateZ_vz'][-1]/1000)
+
+            INPUTS['cmd_ax'].append(0)
+            INPUTS['cmd_ay'].append(0)
+            INPUTS['cmd_az'].append(0)
+            
             break
 
 
@@ -460,7 +466,7 @@ if __name__ == '__main__':
     cflib.crtp.init_drivers()
     time_string = time.ctime().replace(':', '-')
     start_time = time.time()
-    INPUTS = {'motor_timestamp': [], 'm1': [], 'm2': [], 'm3': [], 'm4': [], 'bat_timestamp': [], 'bat_volt':[],'cmd_timestamp': [],'cmd_thrust': [],'cmd_act_thrust':[], 'cmd_roll':[], 'cmd_pitch':[], 'cmd_yawrate':[], 'stabilizer_timestamp':[], 'stabilizer_thrust':[], 'des_timestamp':[],'des_x':[],'des_y':[],'des_z':[], 'des_timestamp':[],'des_vx':[],'des_vy':[],'des_vz':[], }
+    INPUTS = {'motor_timestamp': [], 'm1': [], 'm2': [], 'm3': [], 'm4': [], 'bat_timestamp': [], 'bat_volt':[],'cmd_timestamp': [],'cmd_thrust': [],'cmd_act_thrust':[], 'cmd_roll':[], 'cmd_pitch':[], 'cmd_yawrate':[], 'stabilizer_timestamp':[],'des_x':[],'des_y':[],'des_z':[], 'des_timestamp':[],'des_vx':[],'des_vy':[],'des_vz':[],'cmd_ax':[],'cmd_ay':[],'cmd_az':[] }
     
     OUTPUTS = {'mocap_output_timestamp': [], 'mocap_x': [], 'mocap_y': [], 'mocap_z': [], 'mocap_qx': [], 'mocap_qy': [], 'mocap_qz': [], 'mocap_qw': [],
                'stateZ_timestamp':[],'stateZ_x':[],'stateZ_y':[],'stateZ_z':[],'stateZ_quat':[],'stateZ_vx':[],'stateZ_vy':[],'stateZ_vz':[],'stateZ_rollrate':[],'stateZ_pitchrate':[],'stateZ_yawrate':[]}# 'state_timestamp':[],'state_roll':[],'state_pitch':[], 'state_yaw':[],'state_qx':[],'state_qy':[],'state_qz':[],'state_qw':[]} #               'state_timestamp':[],'state_qx':[],'state_qy':[],'state_qz':[],'state_qw':[],'state_timestamp':[],'state_x':[], 'state_y':[],'state_z':[],'state_roll':[],'state_pitch':[], 'state_yaw':[],
@@ -533,7 +539,7 @@ if __name__ == '__main__':
         time.sleep(1)
         scf.cf.log.add_config(lg_motor)
         scf.cf.log.add_config(bat_volt)
-        scf.cf.log.add_config(lg_stab)
+        # scf.cf.log.add_config(lg_stab)
         scf.cf.log.add_config(lg_cont)
         # scf.cf.log.add_config(lg_state)   
         scf.cf.log.add_config(lg_stateZ)
@@ -541,7 +547,7 @@ if __name__ == '__main__':
 
         lg_motor.data_received_cb.add_callback(log_motor_callback)
         bat_volt.data_received_cb.add_callback(log_battery_voltage)
-        lg_stab.data_received_cb.add_callback(log_stabilizer_callback)
+        # lg_stab.data_received_cb.add_callback(log_stabilizer_callback)
         lg_cont.data_received_cb.add_callback(log_controller_callback)     
         # lg_state.data_received_cb.add_callback(log_state_callback)   
         lg_stateZ.data_received_cb.add_callback(log_stateZ_callback) 
@@ -567,9 +573,9 @@ if __name__ == '__main__':
         reset_estimator(scf)
         # run_sequence(scf, sequence)
         run_sequence(scf)
-        lg_stab.stop()
+        # lg_stab.stop()
         bat_volt.stop()
-        # lg_motor.stop() 
+        lg_motor.stop() 
         # lg_cont.stop()
         # lg_state.stop()
         # lg_gyro.stop()
