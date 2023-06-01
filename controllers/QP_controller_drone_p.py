@@ -14,7 +14,7 @@ def norm(x, y, z):
     return sqrt(x**2 + y**2 + z**2)
 
 class QP_Controller_Drone(QP_Controller):
-    def __init__(self, gamma:float):
+    def __init__(self, gamma:float, obs_radius=0.1):
         """
         Constructor creates QP_Controller object for Multi Agent system where 
         each agent is a Drone model bot.        
@@ -37,6 +37,7 @@ class QP_Controller_Drone(QP_Controller):
         self.u_star = None
         self.G = 9.81
         self.kf = 3.16e-10
+        self.obs_r = obs_radius
         
     def set_reference_control(self, u_ref:np.ndarray):
         """
@@ -96,6 +97,8 @@ class QP_Controller_Drone(QP_Controller):
         self.Psi = []
         self.B = [[]]
         self.C = [[]]
+
+        bot.r = bot.encompassing_radius + self.obs_r
         
         # create state and parameter symbolic varaibles for each bot
         
@@ -152,10 +155,45 @@ class QP_Controller_Drone(QP_Controller):
 
         # Classical CBF
         # self.h = norm(c_x - bot.x, c_y - bot.y, c_z - bot.z)**2 -1
+        
+        r_x_by_phi = (-cos(bot.psi)*sin(bot.theta)*sin(bot.phi) + sin(bot.psi)*cos(bot.phi))
+        r_y_by_phi = (-sin(bot.psi)*sin(bot.theta)*sin(bot.phi) - cos(bot.psi)*cos(bot.phi))
+        r_z_by_phi = (-cos(bot.theta)*sin(bot.phi))
+        
+        r_x_by_theta = (cos(bot.psi)*cos(bot.theta)*cos(bot.phi))
+        r_y_by_theta = (sin(bot.psi)*cos(bot.theta)*cos(bot.phi))
+        r_z_by_theta = (-sin(bot.theta)*cos(bot.phi))
+        
+        r_x_by_psi = (-sin(bot.psi)*sin(bot.theta)*cos(bot.phi) + cos(bot.psi)*sin(bot.phi))
+        r_y_by_psi = (cos(bot.psi)*sin(bot.theta)*cos(bot.phi) + sin(bot.psi)*sin(bot.phi))
+        r_z_by_psi = 0
+
+        p_rel_x_by_phi = - bot.l*r_x_by_phi
+        p_rel_y_by_phi = - bot.l*r_y_by_phi
+        p_rel_z_by_phi = - bot.l*r_z_by_phi
+
+        p_rel_x_by_theta = - bot.l*r_x_by_theta
+        p_rel_y_by_theta = - bot.l*r_y_by_theta
+        p_rel_z_by_theta = - bot.l*r_z_by_theta
+
+        p_rel_x_by_psi = - bot.l*r_x_by_psi
+        p_rel_y_by_psi = - bot.l*r_y_by_psi
+        p_rel_z_by_psi = - bot.l*r_z_by_psi
+
+        v_rel_x_by_phi = - bot.l*(-bot.w_3*r_y_by_phi + bot.w_2*r_z_by_phi)
+        v_rel_y_by_phi = - bot.l*(-bot.w_1*r_z_by_phi + bot.w_3*r_x_by_phi)
+        v_rel_z_by_phi = - bot.l*(-bot.w_2*r_x_by_phi + bot.w_1*r_y_by_phi)
+
+        v_rel_x_by_theta = - bot.l*(-bot.w_3*r_y_by_theta + bot.w_2*r_z_by_theta)
+        v_rel_y_by_theta = - bot.l*(-bot.w_1*r_z_by_theta + bot.w_3*r_x_by_theta)
+        v_rel_z_by_theta = - bot.l*(-bot.w_2*r_x_by_theta + bot.w_1*r_y_by_theta)
+
+        v_rel_x_by_psi = - bot.l*(-bot.w_3*r_y_by_psi + bot.w_2*r_z_by_psi)
+        v_rel_y_by_psi = - bot.l*(-bot.w_1*r_z_by_psi + bot.w_3*r_x_by_psi)
+        v_rel_z_by_psi = - bot.l*(-bot.w_2*r_x_by_psi + bot.w_1*r_y_by_psi)
 
         # C3BF Candidate
-        self.h = p_rel_x*v_rel_x + p_rel_y*v_rel_y + p_rel_z*v_rel_z \
-            + norm(v_rel_x, v_rel_y, v_rel_z)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)
+        self.h = p_rel_x*v_rel_x + p_rel_y*v_rel_y + p_rel_z*v_rel_z + norm(v_rel_x, v_rel_y, v_rel_z)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)
             
         rho_h_by_rho_x = -v_rel_x + (-p_rel_x)*norm(v_rel_x, v_rel_y, v_rel_z)/sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)
         rho_h_by_rho_y = -v_rel_y + (-p_rel_y)*norm(v_rel_x, v_rel_y, v_rel_z)/sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)
@@ -163,9 +201,9 @@ class QP_Controller_Drone(QP_Controller):
         rho_h_by_rho_x_d = -p_rel_x + (-v_rel_x)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, v_rel_z)
         rho_h_by_rho_y_d = -p_rel_y + (-v_rel_y)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, v_rel_z)
         rho_h_by_rho_z_d = -p_rel_z + (-v_rel_z)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, v_rel_z)
-        rho_h_by_rho_phi   = diff(self.h, bot.phi)
-        rho_h_by_rho_theta = diff(self.h, bot.theta)
-        rho_h_by_rho_psi   = diff(self.h, bot.psi)
+        rho_h_by_rho_phi   = (p_rel_x_by_phi*v_rel_x + p_rel_y_by_phi*v_rel_y + p_rel_z_by_phi*v_rel_z) + (p_rel_x*v_rel_x_by_phi + p_rel_y*v_rel_y_by_phi + p_rel_z*v_rel_z_by_phi) + (v_rel_x*v_rel_x_by_phi + v_rel_y*v_rel_y_by_phi + v_rel_z*v_rel_z_by_phi)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, v_rel_z) + (p_rel_x*p_rel_x_by_phi + p_rel_y*p_rel_y_by_phi + p_rel_z*p_rel_z_by_phi)*norm(v_rel_x, v_rel_y, v_rel_z)/ sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)
+        rho_h_by_rho_theta = (p_rel_x_by_theta*v_rel_x + p_rel_y_by_theta*v_rel_y + p_rel_z_by_theta*v_rel_z) + (p_rel_x*v_rel_x_by_theta + p_rel_y*v_rel_y_by_theta + p_rel_z*v_rel_z_by_theta) + (v_rel_x*v_rel_x_by_theta + v_rel_y*v_rel_y_by_theta + v_rel_z*v_rel_z_by_theta)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, v_rel_z) + (p_rel_x*p_rel_x_by_theta + p_rel_y*p_rel_y_by_theta + p_rel_z*p_rel_z_by_theta)*norm(v_rel_x, v_rel_y, v_rel_z)/ sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)
+        rho_h_by_rho_psi   = (p_rel_x_by_psi*v_rel_x + p_rel_y_by_psi*v_rel_y + p_rel_z_by_psi*v_rel_z) + (p_rel_x*v_rel_x_by_psi + p_rel_y*v_rel_y_by_psi + p_rel_z*v_rel_z_by_psi) + (v_rel_x*v_rel_x_by_psi + v_rel_y*v_rel_y_by_psi + v_rel_z*v_rel_z_by_psi)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, v_rel_z) + (p_rel_x*p_rel_x_by_psi + p_rel_y*p_rel_y_by_psi + p_rel_z*p_rel_z_by_psi)*norm(v_rel_x, v_rel_y, v_rel_z)/ sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)
         rho_h_by_rho_w_1 = bot.l*(r_z*p_rel_y - r_y*p_rel_z) + bot.l*(r_z*v_rel_y - r_y*v_rel_z)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, v_rel_z)
         rho_h_by_rho_w_2 = bot.l*(r_x*p_rel_z - r_z*p_rel_x) + bot.l*(r_x*v_rel_z - r_z*v_rel_x)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, v_rel_z)
         rho_h_by_rho_w_3 = bot.l*(r_y*p_rel_x - r_x*p_rel_y) + bot.l*(r_y*v_rel_x - r_x*v_rel_y)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, v_rel_z)
@@ -212,37 +250,11 @@ class QP_Controller_Drone(QP_Controller):
             C3BF the value of the function is directly proportional to how 
             unsafe system is.
         """
-        # build value substitution list
-        # uk_vs = [bot.x, bot.y, bot.z,
-        #         bot.x_d, bot.y_d, bot.z_d,
-        #         bot.phi, bot.theta,bot.psi,
-        #         bot.w_1, bot.w_2, bot.w_3,
-        #         bot.L, bot.Ixx, bot.Iyy, bot.Izz, 
-        #         bot.m, bot.l, bot.r]
-
-        # uk_gs = [ bot.x,  bot.y,  bot.z,
-        #          bot.x_dot,  bot.y_dot,  bot.z_dot,
-        #          bot.phi,  bot.theta, bot.psi,
-        #          bot.w_1,  bot.w_2,  bot.w_3,
-        #          bot.L,  bot.Ixx,  bot.Iyy,  bot.Izz, 
-        #          bot.m,  bot.l,  bot.encompassing_radius ]
-
-        # d = {uk: uk_gs[i] for i, uk in enumerate(uk_vs)}
-
-        # # build value substitution list        
-        # self.h = np.array(re(self.h.xreplace(d)))
-        # self.Psi = np.array(re(self.Psi.xreplace(d)))
-        # self.B = np.array(re(self.B.xreplace(d)))
-        # self.C = np.array(re(self.C.xreplace(d)))
-
-        # print(self.Psi)
-
+        
         if self.Psi<0:
             self.u_safe = - np.matmul(self.B, np.linalg.inv(np.matmul(self.C,self.B).astype('float64'))).dot(self.Psi)
             # print(self.u_safe)
         else:
             self.u_safe = 0
         self.u_star = self.u_ref + self.u_safe
-        state_of_h1, state_of_h2 = 0, 0 
-        term_h1 , term_h2 = 0, 0
-        return ((state_of_h1, state_of_h2), (term_h1, term_h2))
+        return self.h
