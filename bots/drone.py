@@ -82,18 +82,18 @@ class Drone:
         self.L = 1.414*length
         
         # time derivatives
-        self.x_dot = x_d
-        self.y_dot = y_d
-        self.z_dot = z_d
+        self.x_d = x_d
+        self.y_d = y_d
+        self.z_d = z_d
         self.x_ddot = 0
         self.y_ddot = 0
         self.z_ddot = 0
-        self.phi_dot = 0
-        self.theta_dot = 0
-        self.psi_dot = 0
-        self.w_1_dot = 0
-        self.w_2_dot = 0
-        self.w_3_dot = 0
+        self.phi_d = 0
+        self.theta_d = 0
+        self.psi_d = 0
+        self.w_1_d = 0
+        self.w_2_d = 0
+        self.w_3_d = 0
         
         # control variables
         self.f1 = 0
@@ -143,7 +143,7 @@ class Drone:
         
     def update_state(self, p, v, rpy, delta_t: float):
         """
-        given x_t x_(t+1) is calculated using x_(t+1) = x_t + x_dot*delta_t,
+        given x_t x_(t+1) is calculated using x_(t+1) = x_t + x_d*delta_t,
         updating states for the next time step based on calculated derivatives
 
         Parameters
@@ -159,9 +159,9 @@ class Drone:
         self.x = p[0]
         self.y = p[1]
         self.z = p[2]
-        self.x_dot = v[0]
-        self.y_dot = v[1]
-        self.z_dot = v[2]
+        self.x_d = v[0]
+        self.y_d = v[1]
+        self.z_d = v[2]
         self.phi = rpy[0]
         self.theta = rpy[1]
         self.psi = rpy[2]
@@ -203,10 +203,10 @@ class Drone:
         # print('x_ddot', self.x_ddot)
         self.y_ddot = (math.sin(self.psi)*math.sin(self.theta)*math.cos(self.phi) - math.cos(self.psi)*math.sin(self.phi))*av_f
         self.z_ddot = - self.g  + (math.cos(self.theta)*math.cos(self.phi)) * av_f
-        self.phi_dot = self.w_1 + self.w_2*math.sin(self.phi)*math.tan(self.theta) + self.w_3*math.cos(self.phi)*math.tan(self.theta)
-        self.theta_dot = self.w_2*math.cos(self.phi) - self.w_3*math.sin(self.phi)
-        self.psi_dot = (self.w_2*math.sin(self.phi) + self.w_3*math.cos(self.phi))/math.cos(self.theta)
-        self.w_1_dot = (self.Iyy - self.Izz)*self.w_2*self.w_3/self.Ixx + self.L*(self.f1-self.f3)/self.Ixx
-        self.w_2_dot = (self.Izz - self.Ixx)*self.w_1*self.w_3/self.Iyy + self.L*(self.f2-self.f4)/self.Iyy
-        self.w_3_dot = (self.Ixx - self.Iyy)*self.w_1*self.w_2/self.Izz
+        self.phi_d = self.w_1 + self.w_2*math.sin(self.phi)*math.tan(self.theta) + self.w_3*math.cos(self.phi)*math.tan(self.theta)
+        self.theta_d = self.w_2*math.cos(self.phi) - self.w_3*math.sin(self.phi)
+        self.psi_d = (self.w_2*math.sin(self.phi) + self.w_3*math.cos(self.phi))/math.cos(self.theta)
+        self.w_1_d = (self.Iyy - self.Izz)*self.w_2*self.w_3/self.Ixx + self.L*(self.f1-self.f3)/self.Ixx
+        self.w_2_d = (self.Izz - self.Ixx)*self.w_1*self.w_3/self.Iyy + self.L*(self.f2-self.f4)/self.Iyy
+        self.w_3_d = (self.Ixx - self.Iyy)*self.w_1*self.w_2/self.Izz
                 

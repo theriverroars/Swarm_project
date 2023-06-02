@@ -14,7 +14,7 @@ def norm(x, y, z):
     return sqrt(x**2 + y**2 + z**2)
 
 class QP_Controller_Drone(QP_Controller):
-    def __init__(self, gamma:float, obs_radius=0.1):
+    def __init__(self, gamma:float, obs_radius=0.5):
         """
         Constructor creates QP_Controller object for Multi Agent system where 
         each agent is a Drone model bot.        
@@ -59,6 +59,15 @@ class QP_Controller_Drone(QP_Controller):
     def get_optimal_control(self):
         self.u_star = self.u_star / self.kf
         # print(self.u_star[1][0])
+        if self.u_star[1][0]<0:
+             self.u_star[1][0] =0
+        if self.u_star[2][0]<0:
+             self.u_star[2][0] =0
+        if self.u_star[3][0]<0:
+             self.u_star[3][0] =0
+        if self.u_star[0][0]<0:
+             self.u_star[0][0] =0
+            
         propellers_1_rpm = sqrt(self.u_star[1][0])
         propellers_3_rpm = sqrt(self.u_star[3][0])
         propellers_0_rpm = sqrt(self.u_star[0][0])
@@ -95,8 +104,8 @@ class QP_Controller_Drone(QP_Controller):
         
         # Create placholder for terms in QP
         self.Psi = []
-        self.B = [[]]
-        self.C = [[]]
+        self.Lg_h_T = [[]]
+        self.Lg_h = [[]]
 
         bot.r = bot.encompassing_radius + self.obs_r
         
@@ -129,8 +138,8 @@ class QP_Controller_Drone(QP_Controller):
                         [0, 0, 0, 0],
                         [0, 0, 0, 0],
                         [0, 0, 0, 0],
-                        [0, bot.L/bot.Iyy, 0, -bot.L/bot.Iyy],
-                        [bot.L/bot.Ixx, 0, -bot.L/bot.Ixx, 0],
+                        [-bot.L*np.sqrt(0.5)/bot.Ixx, -bot.L*np.sqrt(0.5)/bot.Ixx, bot.L*np.sqrt(0.5)/bot.Ixx, bot.L*np.sqrt(0.5)/bot.Ixx],
+                        [-bot.L*np.sqrt(0.5)/bot.Iyy, bot.L*np.sqrt(0.5)/bot.Iyy, bot.L*np.sqrt(0.5)/bot.Iyy, -bot.L*np.sqrt(0.5)/bot.Iyy],
                         [0, 0, 0, 0]])
             
         # for CBF h
@@ -221,13 +230,13 @@ class QP_Controller_Drone(QP_Controller):
                                     rho_h_by_rho_w_2,
                                     rho_h_by_rho_w_3]])
         
-        self.B = (Delta_h_wrt_bot*self.g).transpose()
-        self.C = Delta_h_wrt_bot*self.g
+        self.Lg_h_T = (Delta_h_wrt_bot*self.g).transpose()
+        self.Lg_h = Delta_h_wrt_bot*self.g
         self.u_ref = self.u_ref.reshape((4,1))
-        n = self.C * self.u_ref
-        n_f = Delta_h_wrt_bot*self.f
+        Lg_h_u = self.Lg_h * self.u_ref
+        Lf_h = Delta_h_wrt_bot*self.f
         self.Psi = self.gamma*self.h
-        self.Psi += n_f[0] + n[0]
+        self.Psi += Lf_h[0] + Lg_h_u[0]
                  
     def solve_QP(self, bot):
         """
@@ -251,10 +260,24 @@ class QP_Controller_Drone(QP_Controller):
             unsafe system is.
         """
         
+        # build value substitution list        
+        self.h = np.array(re(self.h))
+        self.Psi = np.array(re(self.Psi))
+        self.Lg_h_T = np.array(re(self.Lg_h_T))
+        self.Lg_h = np.array(re(self.Lg_h))
+
         if self.Psi<0:
-            self.u_safe = - np.matmul(self.B, np.linalg.inv(np.matmul(self.C,self.B).astype('float64'))).dot(self.Psi)
+            self.u_safe = - np.matmul(self.Lg_h_T, np.linalg.inv(np.matmul(self.Lg_h,self.Lg_h_T).astype('float64'))).dot(self.Psi)
             # print(self.u_safe)
         else:
             self.u_safe = 0
         self.u_star = self.u_ref + self.u_safe
+
+        if self.h< 0:
+            print("Psi", self.Psi)
+            print("h", self.h)
+            print("u_safe =", self.u_safe, "u_ref =", self.u_ref)
+
         return self.h
+
+        

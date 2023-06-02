@@ -22,11 +22,10 @@ from scipy.spatial.transform import Rotation
 from mocaptools import sqrt, Pose, QtmWrapper
 from utility_functions import  comp_quat_to_euler,decompressquat, convert_thrust_2_pwm
 from scipy.signal import savgol_filter
-from controllers.QP_controller_drone import QP_Controller_Drone
 from quad3d_ctrl1 import Quad3D
 
 from bots.drone import Drone
-from controllers.QP_controller_drone import QP_Controller_Drone
+from controllers.QP_controller_drone_p import QP_Controller_Drone
 
 # Creating Bots
 
@@ -74,7 +73,7 @@ CF_BODY = 'cf'
 
 # path parameters
 t_run = 25
-hieght = 0.4
+hieght = 0.5
 t_lift = 5
 t_land = 2
 n_iters = 1
@@ -273,7 +272,7 @@ def run_sequence(scf):
 
     CTRL = Quad3D()
     gamma = 1
-    qp = QP_Controller_Drone(gamma)
+    qp = QP_Controller_Drone(gamma, obs_radius=0.25)
         
     while np.absolute(OUTPUTS['stateZ_x'][-1])/1000 < 4.5 and np.absolute(OUTPUTS['stateZ_y'][-1])/1000 < 4.5 and (OUTPUTS['stateZ_z'][-1])/1000 < 2:
         t_now = time.time()
@@ -348,12 +347,12 @@ def run_sequence(scf):
                 u_ref = rpm
                 f_u_ref = 3.16e-10 * np.square(u_ref)
                 qp.set_reference_control(f_u_ref)
-                qp.setup_QP(bot, [2.0, 0, 0.39],[0,0,0])
+                qp.setup_QP(bot, [2.0, 0, 0.35],[0,0,0])
                 
                 # Simulation
                 # Solve QP
                 value_of_h = qp.solve_QP(bot)
-                print("h", value_of_h)
+                # print("h", value_of_h)
                 
                 # Bot Kinematics
                 u_star = qp.get_optimal_control()

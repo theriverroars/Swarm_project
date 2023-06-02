@@ -168,13 +168,13 @@ class Quad3D():
         propellers_0_rpm = np.sqrt(propellers_rpm[0, 0])
         propellers_2_rpm = np.sqrt(propellers_rpm[2, 0])
 
-        # Print relevant output
-        if self.control_counter%(1/self.timestep) == 0:
-            print("current_position", current_position)
-            print("current_velocity", current_velocity)
-            print("target_position", target_position)
-            print("target_velocity", target_velocity)
-            print("target_acceleration", target_acceleration)
+        # # Print relevant output
+        # if self.control_counter%(1/self.timestep) == 0:
+        #     print("current_position", current_position)
+        #     print("current_velocity", current_velocity)
+        #     print("target_position", target_position)
+        #     print("target_velocity", target_velocity)
+        #     print("target_acceleration", target_acceleration)
 
         # Store the last step's roll, pitch, and yaw
         self.last_rpy = current_rpy
