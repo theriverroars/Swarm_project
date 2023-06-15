@@ -201,21 +201,37 @@ class QP_Controller_Drone(QP_Controller):
         v_rel_y_by_psi = - bot.l*(-bot.w_1*r_z_by_psi + bot.w_3*r_x_by_psi)
         v_rel_z_by_psi = - bot.l*(-bot.w_2*r_x_by_psi + bot.w_1*r_y_by_psi)
 
-        # C3BF Candidate
-        self.h = p_rel_x*v_rel_x + p_rel_y*v_rel_y + p_rel_z*v_rel_z + norm(v_rel_x, v_rel_y, v_rel_z)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)
+        # # C3BF Candidate
+        # self.h = p_rel_x*v_rel_x + p_rel_y*v_rel_y + p_rel_z*v_rel_z + norm(v_rel_x, v_rel_y, v_rel_z)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)
             
-        rho_h_by_rho_x = -v_rel_x + (-p_rel_x)*norm(v_rel_x, v_rel_y, v_rel_z)/sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)
-        rho_h_by_rho_y = -v_rel_y + (-p_rel_y)*norm(v_rel_x, v_rel_y, v_rel_z)/sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)
-        rho_h_by_rho_z = -v_rel_z + (-p_rel_z)*norm(v_rel_x, v_rel_y, v_rel_z)/sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)
-        rho_h_by_rho_x_d = -p_rel_x + (-v_rel_x)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, v_rel_z)
-        rho_h_by_rho_y_d = -p_rel_y + (-v_rel_y)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, v_rel_z)
-        rho_h_by_rho_z_d = -p_rel_z + (-v_rel_z)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, v_rel_z)
-        rho_h_by_rho_phi   = (p_rel_x_by_phi*v_rel_x + p_rel_y_by_phi*v_rel_y + p_rel_z_by_phi*v_rel_z) + (p_rel_x*v_rel_x_by_phi + p_rel_y*v_rel_y_by_phi + p_rel_z*v_rel_z_by_phi) + (v_rel_x*v_rel_x_by_phi + v_rel_y*v_rel_y_by_phi + v_rel_z*v_rel_z_by_phi)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, v_rel_z) + (p_rel_x*p_rel_x_by_phi + p_rel_y*p_rel_y_by_phi + p_rel_z*p_rel_z_by_phi)*norm(v_rel_x, v_rel_y, v_rel_z)/ sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)
-        rho_h_by_rho_theta = (p_rel_x_by_theta*v_rel_x + p_rel_y_by_theta*v_rel_y + p_rel_z_by_theta*v_rel_z) + (p_rel_x*v_rel_x_by_theta + p_rel_y*v_rel_y_by_theta + p_rel_z*v_rel_z_by_theta) + (v_rel_x*v_rel_x_by_theta + v_rel_y*v_rel_y_by_theta + v_rel_z*v_rel_z_by_theta)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, v_rel_z) + (p_rel_x*p_rel_x_by_theta + p_rel_y*p_rel_y_by_theta + p_rel_z*p_rel_z_by_theta)*norm(v_rel_x, v_rel_y, v_rel_z)/ sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)
-        rho_h_by_rho_psi   = (p_rel_x_by_psi*v_rel_x + p_rel_y_by_psi*v_rel_y + p_rel_z_by_psi*v_rel_z) + (p_rel_x*v_rel_x_by_psi + p_rel_y*v_rel_y_by_psi + p_rel_z*v_rel_z_by_psi) + (v_rel_x*v_rel_x_by_psi + v_rel_y*v_rel_y_by_psi + v_rel_z*v_rel_z_by_psi)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, v_rel_z) + (p_rel_x*p_rel_x_by_psi + p_rel_y*p_rel_y_by_psi + p_rel_z*p_rel_z_by_psi)*norm(v_rel_x, v_rel_y, v_rel_z)/ sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)
-        rho_h_by_rho_w_1 = bot.l*(r_z*p_rel_y - r_y*p_rel_z) + bot.l*(r_z*v_rel_y - r_y*v_rel_z)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, v_rel_z)
-        rho_h_by_rho_w_2 = bot.l*(r_x*p_rel_z - r_z*p_rel_x) + bot.l*(r_x*v_rel_z - r_z*v_rel_x)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, v_rel_z)
-        rho_h_by_rho_w_3 = bot.l*(r_y*p_rel_x - r_x*p_rel_y) + bot.l*(r_y*v_rel_x - r_x*v_rel_y)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, v_rel_z)
+        # rho_h_by_rho_x = -v_rel_x + (-p_rel_x)*norm(v_rel_x, v_rel_y, v_rel_z)/sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)
+        # rho_h_by_rho_y = -v_rel_y + (-p_rel_y)*norm(v_rel_x, v_rel_y, v_rel_z)/sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)
+        # rho_h_by_rho_z = -v_rel_z + (-p_rel_z)*norm(v_rel_x, v_rel_y, v_rel_z)/sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)
+        # rho_h_by_rho_x_d = -p_rel_x + (-v_rel_x)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, v_rel_z)
+        # rho_h_by_rho_y_d = -p_rel_y + (-v_rel_y)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, v_rel_z)
+        # rho_h_by_rho_z_d = -p_rel_z + (-v_rel_z)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, v_rel_z)
+        # rho_h_by_rho_phi   = (p_rel_x_by_phi*v_rel_x + p_rel_y_by_phi*v_rel_y + p_rel_z_by_phi*v_rel_z) + (p_rel_x*v_rel_x_by_phi + p_rel_y*v_rel_y_by_phi + p_rel_z*v_rel_z_by_phi) + (v_rel_x*v_rel_x_by_phi + v_rel_y*v_rel_y_by_phi + v_rel_z*v_rel_z_by_phi)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, v_rel_z) + (p_rel_x*p_rel_x_by_phi + p_rel_y*p_rel_y_by_phi + p_rel_z*p_rel_z_by_phi)*norm(v_rel_x, v_rel_y, v_rel_z)/ sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)
+        # rho_h_by_rho_theta = (p_rel_x_by_theta*v_rel_x + p_rel_y_by_theta*v_rel_y + p_rel_z_by_theta*v_rel_z) + (p_rel_x*v_rel_x_by_theta + p_rel_y*v_rel_y_by_theta + p_rel_z*v_rel_z_by_theta) + (v_rel_x*v_rel_x_by_theta + v_rel_y*v_rel_y_by_theta + v_rel_z*v_rel_z_by_theta)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, v_rel_z) + (p_rel_x*p_rel_x_by_theta + p_rel_y*p_rel_y_by_theta + p_rel_z*p_rel_z_by_theta)*norm(v_rel_x, v_rel_y, v_rel_z)/ sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)
+        # rho_h_by_rho_psi   = (p_rel_x_by_psi*v_rel_x + p_rel_y_by_psi*v_rel_y + p_rel_z_by_psi*v_rel_z) + (p_rel_x*v_rel_x_by_psi + p_rel_y*v_rel_y_by_psi + p_rel_z*v_rel_z_by_psi) + (v_rel_x*v_rel_x_by_psi + v_rel_y*v_rel_y_by_psi + v_rel_z*v_rel_z_by_psi)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, v_rel_z) + (p_rel_x*p_rel_x_by_psi + p_rel_y*p_rel_y_by_psi + p_rel_z*p_rel_z_by_psi)*norm(v_rel_x, v_rel_y, v_rel_z)/ sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)
+        # rho_h_by_rho_w_1 = bot.l*(r_z*p_rel_y - r_y*p_rel_z) + bot.l*(r_z*v_rel_y - r_y*v_rel_z)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, v_rel_z)
+        # rho_h_by_rho_w_2 = bot.l*(r_x*p_rel_z - r_z*p_rel_x) + bot.l*(r_x*v_rel_z - r_z*v_rel_x)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, v_rel_z)
+        # rho_h_by_rho_w_3 = bot.l*(r_y*p_rel_x - r_x*p_rel_y) + bot.l*(r_y*v_rel_x - r_x*v_rel_y)*sqrt(norm(p_rel_x, p_rel_y, p_rel_z)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, v_rel_z)
+
+        # Projection C3BF Candidate
+        self.h = p_rel_x*v_rel_x + p_rel_y*v_rel_y + norm(v_rel_x, v_rel_y, 0)*sqrt(norm(p_rel_x, p_rel_y, 0)**2 - bot.r**2)
+            
+        rho_h_by_rho_x = -v_rel_x + (-p_rel_x)*norm(v_rel_x, v_rel_y, 0)/sqrt(norm(p_rel_x, p_rel_y, 0)**2 - bot.r**2)
+        rho_h_by_rho_y = -v_rel_y + (-p_rel_y)*norm(v_rel_x, v_rel_y, 0)/sqrt(norm(p_rel_x, p_rel_y, 0)**2 - bot.r**2)
+        rho_h_by_rho_z = 0
+        rho_h_by_rho_x_d = -p_rel_x + (-v_rel_x)*sqrt(norm(p_rel_x, p_rel_y, 0)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, 0)
+        rho_h_by_rho_y_d = -p_rel_y + (-v_rel_y)*sqrt(norm(p_rel_x, p_rel_y, 0)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, 0)
+        rho_h_by_rho_z_d = 0
+        rho_h_by_rho_phi   = (p_rel_x_by_phi*v_rel_x + p_rel_y_by_phi*v_rel_y + 0*0) + (p_rel_x*v_rel_x_by_phi + p_rel_y*v_rel_y_by_phi + 0*0) + (v_rel_x*v_rel_x_by_phi + v_rel_y*v_rel_y_by_phi + 0*0)*sqrt(norm(p_rel_x, p_rel_y, 0)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, 0) + (p_rel_x*p_rel_x_by_phi + p_rel_y*p_rel_y_by_phi + 0*0)*norm(v_rel_x, v_rel_y, 0)/ sqrt(norm(p_rel_x, p_rel_y, 0)**2 - bot.r**2)
+        rho_h_by_rho_theta = (p_rel_x_by_theta*v_rel_x + p_rel_y_by_theta*v_rel_y) + (p_rel_x*v_rel_x_by_theta + p_rel_y*v_rel_y_by_theta) + (v_rel_x*v_rel_x_by_theta + v_rel_y*v_rel_y_by_theta)*sqrt(norm(p_rel_x, p_rel_y, 0)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, 0) + (p_rel_x*p_rel_x_by_theta + p_rel_y*p_rel_y_by_theta + 0*0)*norm(v_rel_x, v_rel_y, 0)/ sqrt(norm(p_rel_x, p_rel_y, 0)**2 - bot.r**2)
+        rho_h_by_rho_psi   = (p_rel_x_by_psi*v_rel_x + p_rel_y_by_psi*v_rel_y + 0*0) + (p_rel_x*v_rel_x_by_psi + p_rel_y*v_rel_y_by_psi + 0*0) + (v_rel_x*v_rel_x_by_psi + v_rel_y*v_rel_y_by_psi + 0*0)*sqrt(norm(p_rel_x, p_rel_y, 0)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, 0) + (p_rel_x*p_rel_x_by_psi + p_rel_y*p_rel_y_by_psi + 0*0)*norm(v_rel_x, v_rel_y, 0)/ sqrt(norm(p_rel_x, p_rel_y, 0)**2 - bot.r**2)
+        rho_h_by_rho_w_1 = bot.l*(r_z*p_rel_y - r_y*0) + bot.l*(r_z*v_rel_y - r_y*0)*sqrt(norm(p_rel_x, p_rel_y, 0)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, 0)
+        rho_h_by_rho_w_2 = bot.l*(r_x*0 - r_z*p_rel_x) + bot.l*(r_x*0 - r_z*v_rel_x)*sqrt(norm(p_rel_x, p_rel_y, 0)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, 0)
+        rho_h_by_rho_w_3 = bot.l*(r_y*p_rel_x - r_x*p_rel_y) + bot.l*(r_y*v_rel_x - r_x*v_rel_y)*sqrt(norm(p_rel_x, p_rel_y, 0)**2 - bot.r**2)/norm(v_rel_x, v_rel_y, 0)
         
         Delta_h_wrt_bot = Matrix([[rho_h_by_rho_x, 
                                     rho_h_by_rho_y, 
