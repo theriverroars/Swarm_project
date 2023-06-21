@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from utility_functions import comp_quat_to_euler
 
-path_traced = '/home/rajpal/github_dat/Drones-C3BF/data_log/dynamics_dataset Mon Apr 24 23-19-23 2023.csv'
+path_traced = '/home/rajpal/github_dat/Drones-C3BF/data_log/tuning/dynamics_dataset Wed Jun 21 13-47-22 2023.csv'
 
 df_traced = pd.read_csv(path_traced)
 

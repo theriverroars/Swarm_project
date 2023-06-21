@@ -21,6 +21,7 @@ from threading import Event
 from scipy.spatial.transform import Rotation
 
 # from mocaptools import sqrt, Pose, QtmWrapper
+from mocap.mocaptools2 import sqrt, Pose, QtmWrapper
 from utility_functions import  comp_quat_to_euler,decompressquat, convert_thrust_2_pwm
 from scipy.signal import savgol_filter
 from quad3d_ctrl1 import Quad3D
@@ -74,12 +75,11 @@ OBS_1 = 'obs_1'
 # ]
 
 # path parameters
-t_run = 10
+t_run = 15
 hieght = 0.5
 t_lift = 5
 t_land = 2
 n_iters = 1
-t_end = 14
 
 
 deck_attached_event = Event()
@@ -152,18 +152,21 @@ def log_state_callback(timestamp, data, logconf):
 
 
 def log_stateZ_callback(timestamp, data, logconf):
-    global OUTPUTS, start_time, mocap_cf
-    bodylist = mocap_cf.getxy()
-    
-    cf_data = bodylist['cf2']
-    OUTPUTS['stateZ_timestamp'].append(timestamp)
-    # OUTPUTS['stateZ_x'].append(data['stateEstimateZ.x'])
-    # OUTPUTS['stateZ_y'].append(data['stateEstimateZ.y'])
-    # OUTPUTS['stateZ_z'].append(data['stateEstimateZ.z'])
+    global OUTPUTS, start_time, mocap
 
-    OUTPUTS['stateZ_x'].append(cf_data[0])
-    OUTPUTS['stateZ_y'].append(cf_data[1])
-    OUTPUTS['stateZ_z'].append(cf_data[2])
+    OUTPUTS['stateZ_timestamp'].append(timestamp)
+    OUTPUTS['stateZ_x'].append(data['stateEstimateZ.x'])
+    OUTPUTS['stateZ_y'].append(data['stateEstimateZ.y'])
+    OUTPUTS['stateZ_z'].append(data['stateEstimateZ.z'])
+
+    # OUTPUTS['stateZ_x'].append(cf_data[0])
+    # OUTPUTS['stateZ_y'].append(cf_data[1])
+    # OUTPUTS['stateZ_z'].append(cf_data[2])
+
+    OUTPUTS['mocap_x'].append(mocap.getpose()[0].x)
+    OUTPUTS['mocap_y'].append(mocap.getpose()[0].y)
+    OUTPUTS['mocap_z'].append(mocap.getpose()[0].z)
+
 
     OUTPUTS['stateZ_quat'].append(data['stateEstimateZ.quat'])
     OUTPUTS['stateZ_vx'].append(data['stateEstimateZ.vx'])
@@ -174,10 +177,13 @@ def log_stateZ_callback(timestamp, data, logconf):
     OUTPUTS['stateZ_pitchrate'].append(data['stateEstimateZ.ratePitch'])
     OUTPUTS['stateZ_yawrate'].append(data['stateEstimateZ.rateYaw'])
 
-    obs_data = bodylist['obs_1']
-    OUTPUTS['obs_x'].append(obs_data[0]/1000)
-    OUTPUTS['obs_y'].append(obs_data[1]/1000)
-    OUTPUTS['obs_z'].append(obs_data[2]/1000)
+    OUTPUTS['obs_x'].append(mocap.getpose()[1].x)
+    OUTPUTS['obs_y'].append(mocap.getpose()[1].y)
+    OUTPUTS['obs_z'].append(mocap.getpose()[1].z)
+    # obs_data = bodylist['obs_1']
+    # OUTPUTS['obs_x'].append(obs_data[0])
+    # OUTPUTS['obs_y'].append(obs_data[1])
+    # OUTPUTS['obs_z'].append(obs_data[2])
 
 def wait_for_position_estimator(scf):
     print('Waiting for estimator to find position...')
@@ -255,26 +261,26 @@ def start_position_printing(scf):
 
 
 
-def mocaplogging(pose):
-    global OUTPUTS, mocap
-    global start_time
-    t = time.time() - start_time
-    OUTPUTS['mocap_output_timestamp'].append(t)
-    p = mocap.getpose()
-    OUTPUTS['mocap_x'].append(p.x)
-    OUTPUTS['mocap_y'].append(p.y)
-    OUTPUTS['mocap_z'].append(p.z)
-    rotation = Rotation.from_matrix(p.rotmatrix)
-    r = rotation.as_quat()
-    OUTPUTS['mocap_qx'].append(r[0])
-    OUTPUTS['mocap_qy'].append(r[1])
-    OUTPUTS['mocap_qz'].append(r[2])
-    OUTPUTS['mocap_qw'].append(r[3])
+# def mocaplogging(pose):
+#     global OUTPUTS, mocap
+#     global start_time
+#     t = time.time() - start_time
+#     OUTPUTS['mocap_output_timestamp'].append(t)
+#     p = mocap.getpose()
+#     OUTPUTS['mocap_x'].append(p.x)
+#     OUTPUTS['mocap_y'].append(p.y)
+#     OUTPUTS['mocap_z'].append(p.z)
+#     rotation = Rotation.from_matrix(p.rotmatrix)
+#     r = rotation.as_quat()
+#     OUTPUTS['mocap_qx'].append(r[0])
+#     OUTPUTS['mocap_qy'].append(r[1])
+#     OUTPUTS['mocap_qz'].append(r[2])
+#     OUTPUTS['mocap_qw'].append(r[3])
 
 
-def run_sequence(scf, mocap_cf):
+def run_sequence(scf):
     cf = scf.cf
-    global A,B,C,file,params,input_np,t_end,OUTPUTS
+    global file,params,input_np,OUTPUTS, r_init
     cf.commander.send_setpoint(0,0,0,0)
     j = 0
     params = {}
@@ -290,11 +296,12 @@ def run_sequence(scf, mocap_cf):
 
     CTRL = Quad3D()
     gamma = 1
-    qp = QP_Controller_Drone(gamma, obs_radius=0.4)
+    qp = QP_Controller_Drone(gamma, obs_radius=0.3)
 
     
   
-    while np.absolute(OUTPUTS['stateZ_x'][-1])/1000 < 4.5 and np.absolute(OUTPUTS['stateZ_y'][-1])/1000 < 4.5 and (OUTPUTS['stateZ_z'][-1])/1000 < 2:
+    while np.absolute((OUTPUTS['stateZ_x'][-1]))/1000 < 6 and np.absolute(OUTPUTS['stateZ_y'][-1])/1000 < 6 and (OUTPUTS['stateZ_z'][-1] - OUTPUTS['stateZ_z'][0])/1000 < 2:
+        
         t_now = time.time()
         t = t_now-t_in
         ## target values
@@ -302,13 +309,14 @@ def run_sequence(scf, mocap_cf):
       
  
         if t < t_lift:
+            print("lifting")
             
 
     
             for i in range(10):
 
-                cf.commander.send_position_setpoint(0,
-                                                    0,
+                cf.commander.send_position_setpoint(r_init[0],
+                                                    r_init[1],
                                                     hieght,
                                                      0)
                 time.sleep(0.001)
@@ -332,9 +340,9 @@ def run_sequence(scf, mocap_cf):
         
 
         elif t < n_iters*t_run + t_lift:
-              
+            # print("running")  
             
-            rd,rd_dot,rd_ddot = path_pars(t-t_lift,t_run,c = 0.3, tilt=0,rd_init = r_init,shape = 'line')
+            rd,rd_dot,rd_ddot = path_pars(t-t_lift,t_run,c = 0.35, tilt=0,rd_init = r_init,shape = 'line')
                 ################################################################
             # put the controller here
             # controller
@@ -372,12 +380,15 @@ def run_sequence(scf, mocap_cf):
 
             # print('rpm',rpm)
 
+            if t-t_lift<1:
+                obs_pos = [OUTPUTS["obs_x"][-1], OUTPUTS["obs_y"][-1], OUTPUTS["obs_z"][-1]]
+                
             if t-t_lift>1:
                 
                 u_ref = rpm
                 f_u_ref = 3.16e-10 * np.square(u_ref)
                 qp.set_reference_control(f_u_ref)
-                qp.setup_QP(bot, [OUTPUTS["obs_x"][-1], OUTPUTS["obs_y"][-1], OUTPUTS["obs_z"][-1]],[0,0,0])
+                qp.setup_QP(bot,obs_pos,[0,0,0])
                 
                 # Simulation
                 # Solve QP
@@ -395,7 +406,7 @@ def run_sequence(scf, mocap_cf):
             thrusts = KF*(rpm**2)
 
             bot.update_state(params['pos'], params['vel'], params['rpy'], params['dt'])
-            print(params['pos'])
+            print(params['pos'], 'obs_pos', obs_pos)
             
             # ## rpy from the dynamics
 
@@ -456,14 +467,16 @@ def run_sequence(scf, mocap_cf):
             
         
         elif t < n_iters*t_run + t_lift + t_land:
+            # print("landing")
             for i in range(10):
-                cf.commander.send_position_setpoint(-r_init[0] + rd[0],
-                                                    -r_init[1] + rd[1],
+                cf.commander.send_position_setpoint(rd[0],
+                                                    rd[1],
                                                     0.05,
                                                      0)
                 time.sleep(0.001)
         
-        elif t >= n_iters*t_run + t_lift + t_land:
+        else:
+            print("shutting down")
 
             INPUTS['des_timestamp'].append(t)
             INPUTS['des_x'].append(rd[0])
@@ -477,13 +490,13 @@ def run_sequence(scf, mocap_cf):
             INPUTS['cmd_ay'].append(0)
             INPUTS['cmd_az'].append(0)
             
+            print('crazyflie gone crazy')
             break
 
 
-
+        # print("while condition", np.absolute((OUTPUTS['stateZ_x'][-1]))/1000, np.absolute(OUTPUTS['stateZ_y'][-1])/1000, (OUTPUTS['stateZ_z'][-1] - OUTPUTS['stateZ_z'][0])/1000)    
         
   
-    print('crazyflie gone crazy')
     cf.commander.send_stop_setpoint()
     # Make sure that the last packet leaves before the link is closed
     # since the message queue is not flushed before closing
@@ -536,10 +549,6 @@ if __name__ == '__main__':
     # # lg_state.add_variable('stateEstimate.qw', 'float')
 
 
-
-
-
-
     lg_stateZ = LogConfig('stateEstimateZ', period_in_ms=10)
     lg_stateZ.add_variable('stateEstimateZ.x', 'int16_t')
     lg_stateZ.add_variable('stateEstimateZ.y', 'int16_t')
@@ -555,12 +564,17 @@ if __name__ == '__main__':
     lg_stateZ.add_variable('stateEstimateZ.ratePitch', 'int16_t')
     lg_stateZ.add_variable('stateEstimateZ.rateYaw', 'int16_t')
     
-    # mocap = QtmWrapper(QTM_IP, CF_BODY)
-    mocap_cf = QTMSDK(QTM_IP)
+
+
+
+
+    qtm_bodies = [CF_BODY, OBS_1]
+    mocap = QtmWrapper(QTM_IP, qtm_bodies)
+    # mocap_cf = QTMSDK(QTM_IP)
     time.sleep(5)
 
-    # init_pos = mocap.getpose()
-    # r_init = np.array([init_pos.x,init_pos.y,hieght])
+    init_pos = mocap.getpose()[0]
+    r_init = np.array([init_pos.x,init_pos.y,hieght])
     
     t_in = time.time()
 
@@ -601,7 +615,7 @@ if __name__ == '__main__':
         #     mc.stop()
         reset_estimator(scf)
         # run_sequence(scf, sequence)
-        run_sequence(scf, mocap_cf)
+        run_sequence(scf)
         # lg_stab.stop()
         bat_volt.stop()
         lg_motor.stop() 
@@ -610,7 +624,7 @@ if __name__ == '__main__':
         # lg_gyro.stop()
         lg_stateZ.stop()
 
-    mocap_cf.close()
+    mocap.close()
     x = input('Do you want to write the file to CSV? (y/n): ')
     if x == 'y' or x == 'Y':
         ds = {**INPUTS, **OUTPUTS}

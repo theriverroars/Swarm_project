@@ -5,7 +5,7 @@ from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
 from cflib.crazyflie.syncLogger import SyncLogger
 from cflib.utils import uri_helper
 
-# from mocap.mocaptools import sqrt, Pose, QtmWrapper
+from mocap.mocaptools2 import sqrt, Pose, QtmWrapper
 from mocapSDK import QTMSDK
 import logging
 from threading import Event
@@ -17,7 +17,7 @@ import pandas as pd
 # URI to the Crazyflie to connect to
 DEFAULT_URI = 'radio://0/80/2M/E7E7E7E701'
 CF_BODY = 'cf2'#args.rigid_body_name
-# OBS_1 = 'obs_1'
+OBS_1 = 'obs_1'
 # OBS_TEMP = 'obs_temp'
 QTM_IP = '192.168.0.2'
 # URI to the Crazyflie to connect to
@@ -29,7 +29,7 @@ logging.basicConfig(level=logging.ERROR)
 send_full_pose = False
 
 def log_state_callback(timestamp, data, logconf):
-    global OUTPUTS, start_time, mocap_cf, bodydict
+    global OUTPUTS, start_time, mocap
     OUTPUTS['stateZ_timestamp'].append(timestamp)
     OUTPUTS['cf_x'].append(data['stateEstimateZ.x']/1000)
     OUTPUTS['cf_y'].append(data['stateEstimateZ.y']/1000)
@@ -42,18 +42,18 @@ def log_state_callback(timestamp, data, logconf):
     # OUTPUTS['stateZ_pitchrate'].append(data['stateEstimateZ.ratePitch']/1000)
     # OUTPUTS['stateZ_yawrate'].append(data['stateEstimateZ.rateYaw']/1000)
 
-    bodydict = mocap_cf.getxy()
+    # bodydict = mocap.getpose()[1].x
     
-    cf_mocap_data = bodydict['cf2']
-    OUTPUTS['cf_mocap_data_x'].append(cf_mocap_data[0]/1000)
-    OUTPUTS['cf_mocap_data_y'].append(cf_mocap_data[1]/1000)
-    OUTPUTS['cf_mocap_data_z'].append(cf_mocap_data[2]/1000)
+    # cf_mocap_data = bodydict['cf2']
+    OUTPUTS['cf_mocap_data_x'].append(mocap.getpose()[0].x)
+    OUTPUTS['cf_mocap_data_y'].append(mocap.getpose()[0].y)
+    OUTPUTS['cf_mocap_data_z'].append(mocap.getpose()[0].z)
 
-    obs_1_data = bodydict['obs_1']
+    # obs_1_data = bodydict['obs_1']
     
-    OUTPUTS['obs_x'].append(obs_1_data[0]/1000)
-    OUTPUTS['obs_y'].append(obs_1_data[1]/1000)
-    OUTPUTS['obs_z'].append(obs_1_data[2]/1000)
+    OUTPUTS['obs_x'].append(mocap.getpose()[1].x)
+    OUTPUTS['obs_y'].append(mocap.getpose()[1].y)
+    OUTPUTS['obs_z'].append(mocap.getpose()[1].z)
     
     # p_obs_temp = mocap_obs_temp.getpose()
     # OUTPUTS['obs_temp_x'].append(p_obs_temp.x)
@@ -180,8 +180,8 @@ if __name__ == '__main__':
     # lg_state_rate.add_variable('stateEstimateZ.rateRoll', 'int16_t')
     # lg_state_rate.add_variable('stateEstimateZ.ratePitch', 'int16_t')
     # lg_state_rate.add_variable('stateEstimateZ.rateYaw', 'int16_t')
-    
-    mocap_cf = QTMSDK(QTM_IP)#, CF_BODY)
+    qtm_bodies = [CF_BODY, OBS_1]
+    mocap = QtmWrapper(QTM_IP, qtm_bodies)
     # time.sleep(5)
     # mocap_obs = QTMSDK(QTM_IP, OBS_1)
     # mocap_obs_temp = QtmWrapper(QTM_IP, OBS_TEMP)
@@ -191,7 +191,6 @@ if __name__ == '__main__':
 
 
     time.sleep(5)
-    
     # bodydict = mocap_cf.getxy()
     # obs_1_data = bodydict['obs_1']
     # print("received new data")
@@ -214,7 +213,7 @@ if __name__ == '__main__':
         lg_state.start()
 
 
-        mocap_cf.bodydict['cf2'] = lambda pose: send_extpose_rot_matrix(cf, pose[0], pose[1], pose[2], pose[3])
+        mocap.on_cf_pose = lambda pose: send_extpose_rot_matrix(cf, pose[0], pose[1], pose[2], pose[3])
 
         # print(bodydict)
 
@@ -233,9 +232,10 @@ if __name__ == '__main__':
         # bat_volt.stop()
         lg_state.stop()
 
-    mocap_cf.close()
+    mocap.close()
     # mocap_obs.close()
     # mocap_obs_temp.close()
+    
     x = input('Do you want to write the file to CSV? (y/n): ')
     if x == 'y' or x == 'Y':
         ds = {**OUTPUTS}
