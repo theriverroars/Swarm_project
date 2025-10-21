@@ -41,7 +41,7 @@ if __name__ == "__main__":
                      gui=GUI,
                      record=RECORD
                      )
-    PYB_CLIENT = env.getPyBulletClient()
+    PYB_CLIENT = env.getPyBulletClient() #returns client ID of currently running simulation
 
     # Initialize the LOGGER  
     LOGGER = Logger(logging_freq_hz=env.SIM_FREQ,
@@ -67,6 +67,8 @@ if __name__ == "__main__":
                                          target_velocity=np.zeros(3),
                                          target_acceleration=np.zeros(3)
                                          )
+    
+
 
     c = [1, 0.1, 0.9]
     state = obs["1"]["state"]

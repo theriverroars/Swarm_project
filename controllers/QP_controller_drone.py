@@ -234,7 +234,18 @@ class QP_Controller_Drone(QP_Controller):
         # print(self.Psi)
 
         if self.Psi<0:
-            self.u_safe = - np.matmul(self.B, np.linalg.inv(np.matmul(self.C,self.B).astype('float64'))).dot(self.Psi)
+            # self.u_safe = - np.matmul(self.B, np.linalg.inv(np.matmul(self.C,self.B).astype('float64'))).dot(self.Psi)
+
+            CB_matrix = np.matmul(self.C, self.B).astype('float64')
+ 
+            try:
+                CB_inv = np.linalg.inv(CB_matrix)
+                self.u_safe = - np.matmul(self.B, CB_inv).dot(self.Psi)
+            except np.linalg.LinAlgError:
+                CB_pinv = np.linalg.pinv(CB_matrix)
+                self.u_safe = - np.matmul(self.B, CB_pinv).dot(self.Psi)
+                print("Warning: Using pseudo-inverse due to singular matrix")
+
             # print(self.u_safe)
         else:
             self.u_safe = 0
