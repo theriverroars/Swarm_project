@@ -17,10 +17,10 @@ This allows the drone to follow its primary objective (PID control) while formal
 .
 ├── assets/
 │   └── cf2x.urdf             \# URDF model for the Crazyflie 2.0 quadrotor
-├── CBF\_controller.py         \# Defines the CBFQPControllerDrone class (safety filter)
-├── nominal\_controller.py     \# Defines the NominalPIDControllerDrone class (primary controller)
-├── quadrotor\_info.py         \# Defines the Quadrotor data class and default parameters
-├── quadrotor\_swarm\_sim.py    \# Contains the PybulletHandler class to manage the simulation
+├── CBF_controller.py         \# Defines the CBFQPControllerDrone class (safety filter)
+├── nominal_controller.py     \# Defines the NominalPIDControllerDrone class (primary controller)
+├── quadrotor_info.py         \# Defines the Quadrotor data class and default parameters
+├── quadrotor_swarm_sim.py    \# Contains the PybulletHandler class to manage the simulation
 └── run.py                    \# The main script to launch and run the simulation
 
 ```
