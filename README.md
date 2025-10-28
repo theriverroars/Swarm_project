@@ -25,6 +25,8 @@ This allows the drone to follow its primary objective (PID control) while formal
 
 ```
 
+---
+
 ## How it Works
 
 1. **`run.py`**: This is the main executable. It initializes the PyBullet simulation, spawns multiple quadrotors, and runs the main control loop.
@@ -44,6 +46,8 @@ This allows the drone to follow its primary objective (PID control) while formal
    * The final, safe command (`ref_thrusts + safety_thrust`) is applied to the drone.
 
    * All other "obstacle" drones simply run their own PID controllers to hover in place.
+
+---
 
 ## Installation
 
@@ -71,4 +75,4 @@ python run.py
 
 A PyBullet window will open, and you will see the primary drone (Agent 0) begin to move upwards, automatically navigating around the other hovering drones as it ascends.
 
-```
+---
