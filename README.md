@@ -50,8 +50,8 @@ This allows the drone to follow its primary objective (PID control) while formal
 1. **Clone the repository:**
 
 ```
-git clone \<your-repo-url\>
-cd \<your-repo-name\>
+git clone https://github.com/theriverroars/Swarm_project.git
+cd Swarm_project-minimalist-cbf
 ```
 
 2. **Install dependencies:**
