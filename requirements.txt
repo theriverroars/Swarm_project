@@ -1,7 +1,0 @@
-numpy
-matplotlib
-pybullet
-gym
-scipy
-sympy
-cycler
