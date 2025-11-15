@@ -46,7 +46,7 @@ if __name__ == "__main__":
     DURATION = 500.       # Total simulation duration (in simulation time)
     SPAWN_COORDINATES=np.array([
         [0., 0., 0.5],    # Agent 0
-        [0., 0.5, 0.45],  # Agent 1
+        [0., 0.5, 0.35],  # Agent 1
     ])
     HOOP_COORDINATES = np.array([0., 0.25, 1.5])
     HOOP_DIRECTION = np.array([0., 0., 1.])
