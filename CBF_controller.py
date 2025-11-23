@@ -131,21 +131,26 @@ class CBFQPControllerDrone():
             v_rel_proj_z = v_rel_z - hoop_z_dir * v_proj_mag
     
         # C3BF Candidate
-        # self.h = Matrix([
+        # self.h_obst = Matrix([
         #     (p_rel_x*v_rel_x + p_rel_y*v_rel_y + p_rel_z*v_rel_z) + 
         #     sqrt(v_rel_x**2 + v_rel_y**2 + v_rel_z**2) * 
         #     sqrt(p_rel_x**2 + p_rel_y**2 + p_rel_z**2 - self.sym_r**2)
         # ])
 
         # HOCBF (High Order Control Barrier Function)
+        # self.h_obst = Matrix([
+        #     p_rel_x*v_rel_x + p_rel_y*v_rel_y + p_rel_z*v_rel_z + 
+        #     0.25*((p_rel_x**2 + p_rel_y**2 + p_rel_z**2 - self.sym_r**2))
+        # ])
+
         self.h_obst = Matrix([
             p_rel_x*v_rel_x + p_rel_y*v_rel_y + p_rel_z*v_rel_z + 
-            sqrt(p_rel_x**2 + p_rel_y**2 + p_rel_z**2 - self.sym_r**2)
+            0.3* sqrt(p_rel_x**2 + p_rel_y**2 + p_rel_z**2 - self.sym_r**2)
         ])
 
         # HOCBF for the "stay-in" constraint
         self.h_hoop = Matrix([
-            -2*(p_rel_proj_x*v_rel_proj_x + p_rel_proj_y*v_rel_proj_y + p_rel_proj_z*v_rel_proj_z) + 
+            -2* (p_rel_proj_x*v_rel_proj_x + p_rel_proj_y*v_rel_proj_y + p_rel_proj_z*v_rel_proj_z) + 
             self.gamma * ((self.sym_r*(0.25 + p_proj_mag**2))**2 - (p_rel_proj_x**2 + p_rel_proj_y**2 + p_rel_proj_z**2))
         ])
         
@@ -196,21 +201,37 @@ class CBFQPControllerDrone():
             self.sym_c_x_d, self.sym_c_y_d, self.sym_c_z_d
         ]
 
+        # Create namespace for lambdify to handle complex symbolic functions
+        namespace = {
+            'sqrt': np.sqrt, 
+            'sin': np.sin, 
+            'cos': np.cos, 
+            'tan': np.tan,
+            'abs': np.abs,
+            'sign': np.sign,
+            'Derivative': lambda *args: 0.0,  # Fallback for unevaluated derivatives
+            're': np.real,
+            'im': np.imag
+        }
+        
         # Lambdify f and g (depend only on agent state & params)
-        self.f_func = lambdify(self._agent_symbols, self.f_sys, 'numpy')
-        self.g_func = lambdify(self._agent_symbols, self.g_sys, 'numpy')
+        self.f_func = lambdify(self._agent_symbols, self.f_sys, [namespace, 'numpy'])
+        self.g_func = lambdify(self._agent_symbols, self.g_sys, [namespace, 'numpy'])
 
         # Lambdify CBFs and their gradients (depend on agent + obstacle symbols)
-        self.h_obst_func = lambdify(self._agent_symbols + self._obst_symbols, self.h_obst, 'numpy')
-        self.dh_obst_func = lambdify(self._agent_symbols + self._obst_symbols, self.sym_partial_h_obst, 'numpy')
+        self.h_obst_func = lambdify(self._agent_symbols + self._obst_symbols, self.h_obst, [namespace, 'numpy'])
+        self.dh_obst_func = lambdify(self._agent_symbols + self._obst_symbols, self.sym_partial_h_obst, [namespace, 'numpy'])
 
-        self.h_hoop_func = lambdify(self._agent_symbols + self._obst_symbols, self.h_hoop, 'numpy')
-        self.dh_hoop_func = lambdify(self._agent_symbols + self._obst_symbols, self.sym_partial_h_hoop, 'numpy')
+        self.h_hoop_func = lambdify(self._agent_symbols + self._obst_symbols, self.h_hoop, [namespace, 'numpy'])
+        self.dh_hoop_func = lambdify(self._agent_symbols + self._obst_symbols, self.sym_partial_h_hoop, [namespace, 'numpy'])
 
         # --- Setup the OSQP Solver ---
         self.solver = osqp.OSQP()
         # Flag to set up the solver on the first run
         self.solver_initialized = False
+
+        # self.min_thrust_ratio = 0.3  # Minimum thrust as a ratio of weight
+        # self.acceleration_gravity = acceleration_gravity
         
         
     def solve_QP(self, 
@@ -285,6 +306,13 @@ class CBFQPControllerDrone():
         Lf_list = []
         Lg_list = []
 
+        # min_total_thrust = self.min_thrust_ratio * agent.m * self.acceleration_gravity
+
+        # cos_theta = np.cos(agent.ang_states[1])
+        # cos_phi = np.cos(agent.ang_states[0])
+        # min_thrust_per_motor = min_total_thrust / (4 * cos_theta * cos_phi) if cos_theta * cos_phi > 0.1 else min_total_thrust / 4
+
+
         # --- Evaluate CBF constraints for each obstacle ---
         for i in range(num_obstacles):
             obst_vals = [
@@ -319,7 +347,7 @@ class CBFQPControllerDrone():
 
         h_i = np.array(self.h_hoop_func(*(agent_vals + obst_vals))).astype("float").squeeze()
         d_h_x_i = np.array(self.dh_hoop_func(*(agent_vals + obst_vals))).astype("float").squeeze()
-        
+
         h_list.append(h_i)
         Lf_list.append(np.dot(d_h_x_i, f_val))
         Lg_list.append(np.dot(d_h_x_i, g_val))
@@ -327,6 +355,10 @@ class CBFQPControllerDrone():
         h_vec = np.array(h_list)
         Lf_vec = np.array(Lf_list)
         Lg_mat = np.array(Lg_list)
+
+        # A_thrust = np.eye(4)
+        # l_thrust = np.full((4,), min_thrust_per_motor) - u_ref
+        # u_thrust = np.full((4,), np.inf)
         
         # --- Check for violations ---
         # Psi = Lf_h + Lg_h * u_ref + gamma * h
@@ -343,14 +375,23 @@ class CBFQPControllerDrone():
         l = -Psi_vec
         u = np.full_like(l, np.inf)
 
-        if not self.solver_initialized:
-                # First run: setup the solver with the problem dimensions (n=4, m=num_obstacles)
-                P = csc_matrix(np.eye(4) * 2)
-                q = np.zeros(4)
-                self.solver.setup(P=P, q=q, A=A_osqp, l=l, u=u, verbose=False, warm_start=True)
-                self.solver_initialized = True
+        # A_osqp = csc_matrix(np.vstack([Lg_mat, A_thrust]))
+        # l = np.hstack([-Psi_vec, l_thrust])
+        # u = np.hstack([np.full_like(-Psi_vec, np.inf), u_thrust])
+
+        # Check if problem dimensions have changed
+        current_problem_size = A_osqp.shape[0]
+        
+        if not self.solver_initialized or not hasattr(self, '_last_problem_size') or self._last_problem_size != current_problem_size:
+            # First run or problem size changed: setup the solver with new dimensions
+            P = csc_matrix(np.eye(4) * 2)
+            q = np.zeros(4)
+            self.solver = osqp.OSQP()  # Create new solver instance
+            self.solver.setup(P=P, q=q, A=A_osqp, l=l, u=u, verbose=False, warm_start=True)
+            self.solver_initialized = True
+            self._last_problem_size = current_problem_size
         else:
-            # Subsequent runs: update the solver with new values
+            # Subsequent runs with same dimensions: update the solver with new values
             # We must update A (Lg_mat) and l (-Psi_vec)
             self.solver.update(Ax=A_osqp.data, l=l, u=u)
     
@@ -383,3 +424,68 @@ class CBFQPControllerDrone():
         # u_safe = pinv(A) * b
         u_safe = (np.linalg.pinv(A_active.reshape(1, -1)) * b_active).squeeze()
         return u_safe, True
+    
+    def CBF_value(self,
+                  agent:Quadrotor,
+                  obstacle_positions:np.ndarray,
+                  obstacle_velocities:np.ndarray
+                 ):
+        """
+        Computes the current value of the CBF for a given agent and obstacle.
+
+        Args:
+            agent (Quadrotor): The quadrotor object with its current state.
+            obstacle_position (np.ndarray): 3D position of the obstacle.
+            obstacle_velocity (np.ndarray): 3D velocity of the obstacle.
+
+        Returns:
+            float: The current value of the CBF h(x).
+        """
+
+        num_obstacles = len(obstacle_positions)
+        
+        # --- Substitute numerical values into symbolic expressions ---
+        # Create a dictionary of all agent state and parameter values
+        agent_vals = [
+            float(agent.pos_states[0]), 
+            float(agent.pos_states[1]), 
+            float(agent.pos_states[2]),
+            float(agent.d_pos_states[0]), 
+            float(agent.d_pos_states[1]), 
+            float(agent.d_pos_states[2]),
+            float(agent.ang_states[0]), 
+            float(agent.ang_states[1]), 
+            float(agent.ang_states[2]),
+            float(agent.d_ang_states[0]), 
+            float(agent.d_ang_states[1]), 
+            float(agent.d_ang_states[2]),
+            float(agent.I[0, 0]), 
+            float(agent.I[1, 1]), 
+            float(agent.I[2, 2]), 
+            float(agent.m), 
+            float(agent.L_CBF),
+            float(agent.l_com),
+            float(agent.r_safety)
+        ]
+
+        h_list = []
+        # --- Evaluate CBF constraints for each obstacle ---
+        for i in range(num_obstacles):
+            obst_vals = [
+                float(obstacle_positions[i, 0]),
+                float(obstacle_positions[i, 1]),
+                float(obstacle_positions[i, 2]),
+                float(obstacle_velocities[i, 0]),
+                float(obstacle_velocities[i, 1]),
+                float(obstacle_velocities[i, 2])
+            ]
+        
+            # h_i = h(x) & d_h_x_i = dh/dx
+            # Use lambdified functions for speed
+            h_i = np.array(self.h_obst_func(*(agent_vals + obst_vals))).astype("float").squeeze()
+            # d_h_x_i = np.array(self.dh_obst_func(*(agent_vals + obst_vals))).astype("float").squeeze()
+
+            h_list.append(h_i)
+
+        return h_list
+
