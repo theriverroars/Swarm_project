@@ -46,9 +46,9 @@ if __name__ == "__main__":
     # --- Simulation Parameters ---
     DURATION = 500.       # Total simulation duration (in simulation time)
     SPAWN_COORDINATES=np.array([
-        [0., 0., 0.5],    # Agent 0
-        [0., 0.5, 0.4],  # Agent 1
-        [0., -0.5, 0.3],  # Agent 2
+        [0., 0., 0.2],    # Agent 0
+        [0., 0.3, 0.3],  # Agent 1
+        [0., -0.3, 0.4],  # Agent 2
     ])
 
 
@@ -136,21 +136,42 @@ if __name__ == "__main__":
         # Decide priority of agents using position, rel velocity and CBF value
 
 
-        if i % 50 == 0:
+        if i % 10 == 0:
 
-            prioty_list = []
+            priority_list = []
+            eps = 0.001  # threshold for grouping equal priority
+
             # Calculate priority for all agents
             for j, agent in enumerate(AGENTS_LIST):
-                # Get other agents as obstacles for priority calculation
-                
-
                 priority_value = compute_priority(agent, weights)
-                prioty_list.append((j, priority_value))
-            
-            # Sort priority list (lower values = higher priority)
-            prioty_list = sorted(prioty_list, key=lambda x: x[1], reverse=False)
+                priority_list.append((j, priority_value))
 
-            print(f"[MAIN] Priority List at step {i}: {prioty_list}")
+            # Sort by priority_value
+            priority_list = sorted(priority_list, key=lambda x: x[1])
+
+            # Assign equal ranks within threshold
+            ranked_list = []
+            current_rank = 1
+            prev_value = None
+
+            for idx, (agent_id, p_val) in enumerate(priority_list):
+                if prev_value is None:
+                    # first element
+                    ranked_list.append((agent_id, p_val, current_rank))
+                    prev_value = p_val
+                    continue
+
+                # If within threshold → same rank
+                if abs(p_val - prev_value) <= eps:
+                    ranked_list.append((agent_id, p_val, current_rank))
+                else:
+                    current_rank += 1
+                    ranked_list.append((agent_id, p_val, current_rank))
+
+                prev_value = p_val
+
+            print(f"[MAIN] Priority List with grouped ranks at step {i}: {ranked_list}")
+
 
         # Iterating through all the agents
         for j, agent in enumerate(AGENTS_LIST):
@@ -170,17 +191,21 @@ if __name__ == "__main__":
             # Convert nominal RPM to nominal thrusts
             ref_thrusts = NC.thrust_from_rpm(ref_propellers_rpm)
 
-            # Get current agent's position in priority list
-            current_priority_index = next(idx for idx, (agent_id, _) in enumerate(prioty_list) if agent_id == j)
+            # Get current agent's rank
+            current_rank = next(rank for agent_id, _, rank in ranked_list if agent_id == j)
+
+            # Agents with higher priority (lower rank number) other than itself
             
-            # Get obstacles: only agents with higher priority (lower index in sorted priority list)
-            higher_priority_agents = [agent_id for agent_id, _ in prioty_list[:current_priority_index]]
-            
+            higher_priority_agents = [
+                agent_id for agent_id, _, rank in ranked_list
+                if rank <= current_rank and agent_id != j
+            ]
+
             obstacle_pos = np.asarray([AGENTS_LIST[k].pos_states for k in higher_priority_agents]) if higher_priority_agents else np.empty((0, 3))
             obstacle_vel = np.asarray([AGENTS_LIST[k].d_pos_states for k in higher_priority_agents]) if higher_priority_agents else np.empty((0, 3))
 
 
-            print(f"[MAIN] Agent {agent.id} | Priority Index: {current_priority_index} | Higher Priority Agents: {higher_priority_agents}")
+            print(f"[MAIN] Agent {agent.id} | Priority Index: {current_rank} | Higher Priority Agents: {higher_priority_agents}")
             print("Size of obstacle pos:", obstacle_pos.shape, "Size of obstacle vel:", obstacle_vel.shape)
 
 
