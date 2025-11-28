@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.spatial.transform import Rotation
+import matplotlib.pyplot as plt
 
 from quadrotor_info import Quadrotor
 
@@ -26,6 +27,10 @@ class NominalPIDControllerDrone():
         self.dt = time_step_size
         self.g = acceleration_gravity
         
+        # History tracking for plotting
+        self.rpm_history = {}  # Dictionary to store RPM history for each agent
+        self.time_history = []
+        
         # Pre-compute the inverse of the RPM-to-Forces/Torques allocation matrix.
         # This matrix maps [Total Thrust, Torque_X, Torque_Y, Torque_Z] (scaled)
         # to the required (RPM^2) for each of the four motors.
@@ -37,6 +42,7 @@ class NominalPIDControllerDrone():
                 [1,   1,  -1,   -1],
             ])
         )
+
 
     
     def thrust_from_rpm(self, motor_rpm:np.ndarray):
@@ -70,14 +76,14 @@ class NominalPIDControllerDrone():
     
     
     def get_angular_position_error(self, 
-                                   controlled_linear_acceleraion:np.ndarray,
+                                   controlled_linear_acceleration:np.ndarray,
                                    psi_ref:float=0.):
         """
         Computes the desired roll (phi) and pitch (theta) angles to
         achieve the desired linear acceleration.
 
         Args:
-            controlled_linear_acceleraion (np.ndarray): The desired 3D acceleration
+            controlled_linear_acceleration (np.ndarray): The desired 3D acceleration
                                                        vector in the body frame.
             psi_ref (float, optional): The desired yaw (psi) angle. Defaults to 0.
 
@@ -88,12 +94,12 @@ class NominalPIDControllerDrone():
         sine = np.sin(psi_ref)
         cosine = np.cos(psi_ref)
         phi_ref = np.arcsin(
-            (controlled_linear_acceleraion[0]*sine - controlled_linear_acceleraion[1]*cosine)/
-            (np.linalg.norm(controlled_linear_acceleraion) + 1e-6)  # Add epsilon to avoid division by zero
+            (controlled_linear_acceleration[0]*sine - controlled_linear_acceleration[1]*cosine)/
+            (np.linalg.norm(controlled_linear_acceleration) + 1e-6)  # Add epsilon to avoid division by zero
         )
         theta_ref = -np.arctan(
-            (controlled_linear_acceleraion[0]*cosine + controlled_linear_acceleraion[1]*sine)/
-            (controlled_linear_acceleraion[2] + 1e-6)  # Add epsilon to avoid division by zero
+            (controlled_linear_acceleration[0]*cosine + controlled_linear_acceleration[1]*sine)/
+            (controlled_linear_acceleration[2] + 1e-6)  # Add epsilon to avoid division by zero
         )
         return np.array([phi_ref, theta_ref, psi_ref])
     
@@ -130,22 +136,25 @@ class NominalPIDControllerDrone():
         self.agent.prev_position_error = np.copy(linear_position_error)
 
         # Calculate desired linear acceleration from the position PID controller
-        controlled_linear_acceleraion = (
+        controlled_linear_acceleration = (
             target_linear_acceleration +  # Feed-forward term
             self.agent.PID_coeffs_pos[0] * linear_position_error +               # Proportional
             self.agent.PID_coeffs_pos[1] * self.agent.integral_position_error +  # Integral
             self.agent.PID_coeffs_pos[2] * linear_velocity_error                 # Derivative
         )
         # Compensate for gravity
-        controlled_linear_acceleraion[2] += self.g   
-        
+        controlled_linear_acceleration[2] += self.g   
+
+
         # --- Attitude Control (Inner Loop) ---
         # Convert desired acceleration from world frame to the drone's body frame
         rot_matrix = Rotation.from_euler("xyz", self.agent.ang_states).as_matrix()
-        controlled_linear_acceleraion = rot_matrix.T @ controlled_linear_acceleraion
+        controlled_linear_acceleration = rot_matrix.T @ controlled_linear_acceleration
+
+        print("Controlled linear acceleration:", controlled_linear_acceleration)
         
         # Get desired [phi, theta, psi] angles from the desired body-frame acceleration
-        angular_position_error = self.get_angular_position_error(controlled_linear_acceleraion)
+        angular_position_error = self.get_angular_position_error(controlled_linear_acceleration)
         
         # Calculate errors for the attitude controller
         angular_velocity_error = (angular_position_error - self.agent.prev_angle_error) / self.dt
@@ -153,21 +162,23 @@ class NominalPIDControllerDrone():
         self.agent.prev_angle_error = np.copy(angular_position_error)
         
         # Calculate desired angular acceleration from the attitude PID controller
-        controlled_angular_acceleraion = (
+        controlled_angular_acceleration = (
             self.agent.PID_coeffs_ang[0] * angular_position_error +   # Proportional
             self.agent.PID_coeffs_ang[1] * self.agent.integral_angle_error + # Integral
             self.agent.PID_coeffs_ang[2] * angular_velocity_error     # Derivative
         )
         
+        print("Controlled angular acceleration:", controlled_angular_acceleration)
+
         # --- Actuator Command Calculation ---
         # TLMN_scaled = [Total Thrust, Torque_X, Torque_Y, Torque_Z] (scaled)
         TLMN_scaled = np.zeros(4, dtype="float")
         
         # Calculate total thrust (T) required (scaled by k_f)
-        TLMN_scaled[0] = self.agent.m * controlled_linear_acceleraion[2] / self.agent.kf
+        TLMN_scaled[0] = self.agent.m * controlled_linear_acceleration[2] / self.agent.kf
         
         # Calculate required torques (L, M, N) (scaled by k_f * L) -> Torque = I * angular_acceleration
-        TLMN_scaled[1:] = self.agent.I @ controlled_angular_acceleraion / (self.agent.kf * self.agent.L)
+        TLMN_scaled[1:] = self.agent.I @ controlled_angular_acceleration / (self.agent.kf * self.agent.L)
         
         # Convert [T, L, M, N] to (RPM^2) for each motor using the inverse allocation matrix
         propellers_rpm_squared = (self.matrix_rpm2u_inv @ TLMN_scaled).squeeze()
@@ -177,3 +188,91 @@ class NominalPIDControllerDrone():
         
         # Return the final RPM command
         return np.sqrt(propellers_rpm_squared)
+    
+    def store_rpm_history(self, agent_id, ref_rpm, actual_rpm, time_step):
+        """
+        Store RPM history for plotting.
+        
+        Args:
+            agent_id (int): The agent ID
+            ref_rpm (np.ndarray): Reference RPM values
+            actual_rpm (np.ndarray): Actual RPM values
+            time_step (float): Current simulation time
+        """
+        if agent_id not in self.rpm_history:
+            self.rpm_history[agent_id] = {
+                'time': [],
+                'ref_rpm': [[], [], [], []],  # 4 motors
+                'actual_rpm': [[], [], [], []]  # 4 motors
+            }
+        
+        self.rpm_history[agent_id]['time'].append(time_step)
+        for i in range(4):
+            self.rpm_history[agent_id]['ref_rpm'][i].append(ref_rpm[i])
+            self.rpm_history[agent_id]['actual_rpm'][i].append(actual_rpm[i])
+    
+    def plot_rpm_history(self, agent_id):
+        """
+        Plot RPM history for a specific agent.
+        
+        Args:
+            agent_id (int): The agent ID to plot
+        """
+        if agent_id not in self.rpm_history:
+            print(f"No RPM history found for agent {agent_id}")
+            return
+        
+        history = self.rpm_history[agent_id]
+        time_array = np.array(history['time'])
+        
+        # Create subplots for each motor
+        fig, axes = plt.subplots(2, 2, figsize=(12, 8))
+        fig.suptitle(f'RPM History for Agent {agent_id}', fontsize=16)
+        
+        motors = ['Motor 1', 'Motor 2', 'Motor 3', 'Motor 4']
+        positions = [(0, 0), (0, 1), (1, 0), (1, 1)]
+        
+        for i, (motor_name, pos) in enumerate(zip(motors, positions)):
+            ax = axes[pos[0], pos[1]]
+            ax.plot(time_array, history['ref_rpm'][i], 'b--', label='Reference RPM', linewidth=2)
+            ax.plot(time_array, history['actual_rpm'][i], 'r-', label='Actual RPM', linewidth=1.5)
+            ax.set_title(motor_name)
+            ax.set_xlabel('Time (s)')
+            ax.set_ylabel('RPM')
+            ax.legend()
+            ax.grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        plt.show()
+    
+    def plot_all_agents_rpm(self):
+        """
+        Plot RPM comparison for all agents.
+        """
+        if not self.rpm_history:
+            print("No RPM history found for any agents")
+            return
+        
+        num_agents = len(self.rpm_history)
+        fig, axes = plt.subplots(num_agents, 4, figsize=(16, 4*num_agents))
+        if num_agents == 1:
+            axes = axes.reshape(1, -1)
+        
+        fig.suptitle('RPM History Comparison - All Agents', fontsize=16)
+        
+        for agent_idx, agent_id in enumerate(sorted(self.rpm_history.keys())):
+            history = self.rpm_history[agent_id]
+            time_array = np.array(history['time'])
+            
+            for motor_idx in range(4):
+                ax = axes[agent_idx, motor_idx]
+                ax.plot(time_array, history['ref_rpm'][motor_idx], 'b--', label='Ref', linewidth=1.5)
+                ax.plot(time_array, history['actual_rpm'][motor_idx], 'r-', label='Actual', linewidth=1)
+                ax.set_title(f'Agent {agent_id} - Motor {motor_idx+1}')
+                ax.set_xlabel('Time (s)')
+                ax.set_ylabel('RPM')
+                ax.legend(fontsize=8)
+                ax.grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        plt.show()

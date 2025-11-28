@@ -145,7 +145,7 @@ class CBFQPControllerDrone():
 
         self.h_obst = Matrix([
             p_rel_x*v_rel_x + p_rel_y*v_rel_y + p_rel_z*v_rel_z + 
-            0.3* sqrt(p_rel_x**2 + p_rel_y**2 + p_rel_z**2 - self.sym_r**2)
+             0.3*sqrt(Max(p_rel_x**2 + p_rel_y**2 + p_rel_z**2 - self.sym_r**2, 1e-8))
         ])
 
         # HOCBF for the "stay-in" constraint
@@ -232,6 +232,7 @@ class CBFQPControllerDrone():
 
         # self.min_thrust_ratio = 0.3  # Minimum thrust as a ratio of weight
         # self.acceleration_gravity = acceleration_gravity
+        self._last_problem_size = None
         
         
     def solve_QP(self, 
@@ -332,7 +333,7 @@ class CBFQPControllerDrone():
             h_list.append(h_i)
             Lf_list.append(np.dot(d_h_x_i, f_val))      # Lf_h = (dh/dx) * f(x)
             Lg_list.append(np.dot(d_h_x_i, g_val))      # Lg_h = (dh/dx) * g(x)
-            
+        
         # --- Evaluate CBF constraints for passing through hoop ---
         # Use the hoop center as a fake "obstacle" (same pattern as the obstacles above)
         if self._hoop_center is None:
@@ -348,9 +349,12 @@ class CBFQPControllerDrone():
         h_i = np.array(self.h_hoop_func(*(agent_vals + obst_vals))).astype("float").squeeze()
         d_h_x_i = np.array(self.dh_hoop_func(*(agent_vals + obst_vals))).astype("float").squeeze()
 
+        
+
         h_list.append(h_i)
         Lf_list.append(np.dot(d_h_x_i, f_val))
         Lg_list.append(np.dot(d_h_x_i, g_val))
+        # print("h_list:", h_list, "for agent", agent.id, "at", agent.pos_states)  
         
         h_vec = np.array(h_list)
         Lf_vec = np.array(Lf_list)
@@ -364,10 +368,13 @@ class CBFQPControllerDrone():
         # Psi = Lf_h + Lg_h * u_ref + gamma * h
         # If Psi < 0, the constraint is violated by the reference control.
         Psi_vec = (self.gamma * h_vec) + Lf_vec + (Lg_mat @ u_ref.reshape(-1, 1)).squeeze()
+        # print("Psi_vec:", Psi_vec, "for agent", agent.id, "at", agent.pos_states)
         
         violating_indices = np.where(Psi_vec < 0)[0]
+        # print("Violating indices:", violating_indices, "for agent", agent.id)
         if len(violating_indices) == 0:
-            # No violations, no correction needed
+        # No violations, no correction needed
+    
             return np.zeros(4), False
         
         # --- Solve the QP using osqp ---
@@ -393,7 +400,8 @@ class CBFQPControllerDrone():
         else:
             # Subsequent runs with same dimensions: update the solver with new values
             # We must update A (Lg_mat) and l (-Psi_vec)
-            self.solver.update(Ax=A_osqp.data, l=l, u=u)
+            # self.solver.update(Ax=A_osqp.data, l=l, u=u)
+            self.solver.update(A=A_osqp,    l=l, u=u)
     
         try:
             # Update the solver with the new constraints
@@ -401,8 +409,12 @@ class CBFQPControllerDrone():
             
             if solution.info.status != 'solved':
                 # Solver failed, fallback to a simple (but unstable) solution
-                print("[Warning]: OSQP failed, using fallback.")
+                print("[Warning]: OSQP failed - ",  solution.info.status, "Using fallback.")
+                print("number of obstacles:", num_obstacles)
+                print("h shape:", h_vec.shape)
                 u_safe, flag = self.fallback_solver(Lg_mat, Psi_vec)
+
+
                 return u_safe, flag
 
             u_safe = solution.x
@@ -423,6 +435,28 @@ class CBFQPControllerDrone():
         
         # u_safe = pinv(A) * b
         u_safe = (np.linalg.pinv(A_active.reshape(1, -1)) * b_active).squeeze()
+        print("Dimensions of Lg_mat:", Lg_mat.shape)
+        print("Dimensions of Psi_vec:", Psi_vec.shape)
+
+
+        # C = Lg_mat[most_violating_idx, :].reshape(-1, 1)
+        # B = C.transpose()
+        # print("Dimensions of C:", C.shape)
+        # print("Dimensions of B:", B.shape)
+        
+
+        # CB = np.matmul(C, B).astype(float)
+        # print("Dimensions of CB:", CB.shape)
+        # # exit()
+
+        # try:
+        #     CB_inv = np.linalg.inv(CB)
+        #     self.u_safe = - np.matmul(B, CB_inv).dot(Psi_vec)
+        # except np.linalg.LinAlgError:
+        #     CB_pinv = np.linalg.pinv(CB)
+        #     self.u_safe = - np.matmul(B, CB_pinv).dot(Psi_vec)
+        #     print("Warning: Using pseudo-inverse due to singular matrix")
+            
         return u_safe, True
     
     def CBF_value(self,
@@ -488,4 +522,3 @@ class CBFQPControllerDrone():
             h_list.append(h_i)
 
         return h_list
-

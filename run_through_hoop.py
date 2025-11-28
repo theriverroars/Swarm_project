@@ -1,5 +1,6 @@
 import pybullet as pb
 from time import sleep
+import matplotlib.pyplot as plt
 
 from quadrotor_info import *
 from CBF_controller import CBFQPControllerDrone
@@ -39,16 +40,23 @@ def spawn_agents(spawn_coordinates:np.ndarray):
         )
     print(f"[MAIN] Spawn complete. Agent IDs: {[agent.id for agent in AGENTS_LIST]}")
     return AGENTS_LIST
+    
 
 
 if __name__ == "__main__":
     
     # --- Simulation Parameters ---
-    DURATION = 500.       # Total simulation duration (in simulation time)
+    DURATION = 50.       # Total simulation duration (in simulation time)
+    # SPAWN_COORDINATES=np.array([
+    #     # [0., 0., 0.2],    # Agent 0
+    #     [0., 0.3, 0.2],  # Agent 1
+    #     [0., -0.3, 0.4],  # Agent 2
+    # ])
+
     SPAWN_COORDINATES=np.array([
         [0., 0., 0.2],    # Agent 0
-        [0., 0.3, 0.3],  # Agent 1
-        [0., -0.3, 0.4],  # Agent 2
+        [0., 0.3, 0.4],  # Agent 1
+        [0., -0.2, 0.6],  # Agent 2
     ])
 
 
@@ -68,7 +76,7 @@ if __name__ == "__main__":
 
 
 
-    CBF = []
+    # CBF = []
 
     # Iterating through all the agents
     # for j, agent in enumerate(AGENTS_LIST):
@@ -79,7 +87,7 @@ if __name__ == "__main__":
     #         CBF_gamma=1.0, # Aggressiveness of the safety filter
     #         hoop_center_coord=HOOP_COORDINATES,
     #         hoop_direction=HOOP_DIRECTION,
-    #     ))
+    #     ))   
 
     CBF_ = CBFQPControllerDrone(
         acceleration_gravity=GRAVITY_ACC,
@@ -106,9 +114,14 @@ if __name__ == "__main__":
 
     agent : Quadrotor # Type hinting
 
-    weights = [0.2,  # weight for distance
-               0.5,  # weight for relative velocity
+    weights = [0.5,  # weight for distance
+               0.2,  # weight for relative velocity
                0.3]  # weight for CBF value
+    
+    
+    # Priority tracking for plotting
+    priority_history = {j: [] for j in range(NUM_AGENTS)}
+    time_history = []
 
     def compute_priority(agent:Quadrotor, weights:tuple):
         obstacle_positions = np.asarray([AGENTS_LIST[k].pos_states for k in range(NUM_AGENTS) if AGENTS_LIST[k]!= agent])
@@ -122,21 +135,19 @@ if __name__ == "__main__":
             obstacle_velocities=obstacle_velocities,
         )
         priority_value = weights[0]*distances - weights[1]*velocities_towards_hoop - weights[2]*np.sum(h_values)
+        # priority_value = weights[0]*distances - weights[2]*np.sum(h_values)
         
-        
-        print(f"Agent ID: {agent.id} | Distance to Hoop: {distances:.3f} | Velocity Towards Hoop: {velocities_towards_hoop:.3f} | CBF Sum: {np.sum(h_values):.3f} | Priority Value: {priority_value:.3f}")
+        # print(f"Agent ID: {agent.id} | Distance to Hoop: {distances:.3f} | Velocity Towards Hoop: {velocities_towards_hoop:.3f} | CBF Sum: {np.sum(h_values):.3f} | Priority Value: {priority_value:.3f}")
         
         return priority_value
-    
-    
-    prioty_list = []
+    priority_list = []
 
     for i in range(int(DURATION / PH.dt)):
 
         # Decide priority of agents using position, rel velocity and CBF value
 
 
-        if i % 10 == 0:
+        if i % 1 == 0:
 
             priority_list = []
             eps = 0.001  # threshold for grouping equal priority
@@ -171,7 +182,12 @@ if __name__ == "__main__":
                 prev_value = p_val
 
             print(f"[MAIN] Priority List with grouped ranks at step {i}: {ranked_list}")
-
+            
+            # Store priority values for plotting
+            current_time = i * PH.dt
+            time_history.append(current_time)
+            for agent_id, priority_val, _ in ranked_list:
+                priority_history[agent_id].append(priority_val)
 
         # Iterating through all the agents
         for j, agent in enumerate(AGENTS_LIST):
@@ -187,6 +203,12 @@ if __name__ == "__main__":
                 target_linear_velocity=target_vel,
                 target_linear_acceleration=np.zeros(3)
             )
+
+            # print(f"[MAIN] Agent {j} | Target Pos: {target_pos} | Target Vel: {target_vel}")
+            #if any of the ref_propellers_rpm is zero, print a warning
+            if np.any(ref_propellers_rpm == 0):
+                print(f"[WARNING] Agent {j} | One or more reference propeller RPMs are zero!")
+                print("Ref RPMs:", ref_propellers_rpm, "target pos:", target_pos, "target vel:", target_vel)
             
             # Convert nominal RPM to nominal thrusts
             ref_thrusts = NC.thrust_from_rpm(ref_propellers_rpm)
@@ -205,8 +227,9 @@ if __name__ == "__main__":
             obstacle_vel = np.asarray([AGENTS_LIST[k].d_pos_states for k in higher_priority_agents]) if higher_priority_agents else np.empty((0, 3))
 
 
-            print(f"[MAIN] Agent {agent.id} | Priority Index: {current_rank} | Higher Priority Agents: {higher_priority_agents}")
-            print("Size of obstacle pos:", obstacle_pos.shape, "Size of obstacle vel:", obstacle_vel.shape)
+            # print(f"[MAIN] Agent {j} | Priority Index: {current_rank} | Higher Priority Agents: {higher_priority_agents}")
+            # print("Size of obstacle pos:", obstacle_pos.shape, "Size of obstacle vel:", obstacle_vel.shape)
+
 
 
             # Solve the CBF-QP to find a *safe correction*
@@ -224,10 +247,14 @@ if __name__ == "__main__":
             else:
                 # Otherwise, use the nominal (PID) command
                 propellers_rpm = ref_propellers_rpm
+                print(f"[MAIN] Agent {j} | Using nominal RPM command.")
 
             # total_thrust = (ref_thrusts + safety_thrust)
             # propellers_rpm = NC.rpm_from_thrust(total_thrust)
             # # propellers_rpm = ref_propellers_rpm
+            
+            # Store RPM history for plotting
+            NC.store_rpm_history(agent.id, ref_propellers_rpm, propellers_rpm, i * PH.dt)
             
             # Apply control effort to the simulated drone
             PH.apply_ctrl_inputs(agent, propellers_rpm)        
@@ -239,4 +266,13 @@ if __name__ == "__main__":
     # --- End of Simulation ---
     PH.quit()
     print("[MAIN] Simulation finished.")
-        
+
+    # Plot RPM history for each agent
+    print("[MAIN] Generating RPM plots...")
+    NC.plot_all_agents_rpm()
+    
+    # Plot priority values
+    print("[MAIN] Generating priority plots...")
+    plot_priority_history(priority_history, time_history)
+
+
