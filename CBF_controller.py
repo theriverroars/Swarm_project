@@ -410,14 +410,16 @@ class CBFQPControllerDrone():
             if solution.info.status != 'solved':
                 # Solver failed, fallback to a simple (but unstable) solution
                 print("[Warning]: OSQP failed - ",  solution.info.status, "Using fallback.")
-                print("number of obstacles:", num_obstacles)
-                print("h shape:", h_vec.shape)
+                # print("number of obstacles:", num_obstacles)
+                # print("h shape:", h_vec.shape)
                 u_safe, flag = self.fallback_solver(Lg_mat, Psi_vec)
 
 
                 return u_safe, flag
 
             u_safe = solution.x
+
+            # print("h_list:", h_list, "Psi_vec:", Psi_vec, "for agent", agent.id)
             return u_safe, True
 
         except Exception as e:
@@ -435,8 +437,8 @@ class CBFQPControllerDrone():
         
         # u_safe = pinv(A) * b
         u_safe = (np.linalg.pinv(A_active.reshape(1, -1)) * b_active).squeeze()
-        print("Dimensions of Lg_mat:", Lg_mat.shape)
-        print("Dimensions of Psi_vec:", Psi_vec.shape)
+        # print("Dimensions of Lg_mat:", Lg_mat.shape)
+        # print("Dimensions of Psi_vec:", Psi_vec.shape)
 
 
         # C = Lg_mat[most_violating_idx, :].reshape(-1, 1)
