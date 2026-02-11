@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<robot name="hoop">
+    <link name="base_link">
+    <visual>
+        <geometry>
+        <mesh filename="./hoop.obj" scale="0.15 0.15 0.15"/>
+        </geometry>
+        <material name="hoop_material">
+        <color rgba="0.75 0.25 0.25 1"/>
+        </material>
+    </visual>
+    </link>
+</robot>
